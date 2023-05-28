@@ -1,0 +1,6 @@
+*.save
+*.cbp
+.vscode/*
+.code-workspace
+.xml
+vgcore.*
