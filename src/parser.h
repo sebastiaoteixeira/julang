@@ -3,10 +3,10 @@
 
 #include "token.h"
 
-struct {
+typedef struct TLMs {
     Token *tokens;
     int index;
-} tokenListManager;
+} TLM;
 
 // Declare AST node
 typedef struct node {

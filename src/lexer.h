@@ -6,10 +6,9 @@
 int isLetter(char c);
 int isDigit(char c);
 
-unsigned int linecount = 1;
-
 Token* runLexer(FILE* iCode);
 
 Token nextToken(FILE *iCode);
+void printTokenList(Token *tokenList);
 
 #endif // LEXER_H_INCLUDED

@@ -1,24 +1,22 @@
 #ifndef EXPRESSIONPARSER_H_DEFINED
 #define EXPRESSIONPARSER_H_DEFINED
 #include "parser.h"
+#include "token.h"
 
-struct {
+typedef struct Operator {
     char* op;
     int precedence;
-} *Operators;
+} Operator;
 
-char *PRIORITY_LEVELS[] = {"||\\",
-                          "&&\\",
-                          "|\\",
-                          "^\\",
-                          "&\\",
-                          "==\\!=\\",
-                          "<\\>\\<=\\>=\\",
-                          "<<\\>>\\",
-                          "+\\-\\",
-                          "*\\/\\%\\"};
+typedef struct ExpressionToken {
+    Token token;
+    int literal;
+    int unary;
+    int precedence;
+} ExpressionToken;
 
-int initExpressionParser();
+
+void initExpressionParser(TLM* tokenListManagerRef);
 int isOperator(char *c);
 int getOperatorPrecedence(char *op);
 node getExpressionAST();

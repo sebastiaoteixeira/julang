@@ -8,6 +8,10 @@ int isAnOperator(Token c) {
     return c.type >> 4 == 7 || c.type >> 4 == 8;
 }
 
-int isALitteral(Token c) {
+int isALiteral(Token c) {
     return c.type >> 4 == 3;
+}
+
+int isAType(Token c) {
+    return c.type >> 4 == 2;
 }

@@ -22,7 +22,10 @@ int main(int argc, char **argv)
     FILE *inputCode = readFile(argv[1]);
 
     Token *tokenList = runLexer(inputCode);
-
     printTokenList(tokenList);
+
+    node ast = runParser(tokenList);
+
+    printf("Terminated");
     return 0;
 }

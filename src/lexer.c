@@ -1,7 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "token.h"
 #include "lexer.h"
+
+unsigned int linecount = 1;
 
 int isLetter(char c)
 {
@@ -51,6 +54,9 @@ char *stringReader(FILE *iCode)
         string = (char *) realloc(string, sizeof(char) * length);
         *(string + length - 1) = c;
     }
+    length++;
+    string = (char *) realloc(string, sizeof(char) * length);
+    *(string + length - 1) = '\0';
 
     return string;
 }
@@ -79,12 +85,16 @@ Token numberReader(FILE* iCode)
         *(string + length - 1) = c;
 
         c = fgetc(iCode);
-    } ;
+    }
+    length++;
+    string = (char *) realloc(string, sizeof(char) * length);
+    *(string + length - 1) = '\0';
     t.text = string;
+    fseek(iCode, -1, SEEK_CUR);
     return t;
 }
 
-int reservedWordVerifier(char* string) 
+int reservedWordVerifier(char* string)
 {
     if (strcmp(string, "if") == 0) return IF;
     if (strcmp(string, "else") == 0) return ELSE;
@@ -101,6 +111,7 @@ int reservedWordVerifier(char* string)
     if (strcmp(string, "float") == 0) return FLOAT;
     if (strcmp(string, "double") == 0) return DOUBLE;
     if (strcmp(string, "bool") == 0) return BOOL;
+    if (strcmp(string, "null") == 0) return NLL;
     if (strcmp(string, "import") == 0) return IMPORT;
     if (strcmp(string, "return") == 0) return RETURN;
     return 0;
@@ -110,22 +121,27 @@ Token wordReader(FILE* iCode)
 {
     fseek(iCode, -1, SEEK_CUR);
     char c = fgetc(iCode);
-    char* string = (char *) malloc(sizeof(char) * 1);
+    char* string = (char *) malloc(sizeof(char));
 
     Token t;
-    t.type = INUM;
 
     int length = 0;
     while(isDigit(c) || c == '_' || isLetter(c)) {
+        printf("%c", c);
         length++;
         string = (char *) realloc(string, sizeof(char) * length);
         *(string + length - 1) = c;
 
         c = fgetc(iCode);
     }
+    length++;
+    string = (char *) realloc(string, sizeof(char) * length);
+    *(string + length - 1) = '\0';
+    printf("\n");
     if (reservedWordVerifier(string)) t.type = reservedWordVerifier(string);
     else t.type = VAR;
     t.text = string;
+    fseek(iCode, -1, SEEK_CUR);
     return t;
 }
 
@@ -133,8 +149,9 @@ Token nextToken(FILE *iCode)
 {
     Token t;
     char c;
-    while (!feof(iCode)) {
+    while (1) {
         c = fgetc(iCode);
+        if (feof(iCode)) break;
         switch(c) {
         case '\n':
             linecount++;
@@ -274,7 +291,7 @@ Token nextToken(FILE *iCode)
             t.type = BNOT;
             t.text = charToString(c);
             break;
-        
+
         }
 
         if (isDigit(c)) {
