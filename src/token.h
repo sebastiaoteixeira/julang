@@ -23,7 +23,7 @@
 #define TXT 0x32
 #define TRUE 0x33
 #define FALSE 0x34
-#define NULL 0x35
+#define NLL 0x35
 // Keywords
 //   Flow Statements
 #define IF 0x40
@@ -65,26 +65,32 @@
 #define RETURN 0xA1
 
 // Abstract Tokens
-#define STATEMENT 0xA0
-#define EXPRESSION 0xA1
-#define DECLARATION 0xA2
-#define FUNCTION 0xA3
-#define ARGUMENT 0xA4
-#define PARAMETER 0xA5
-#define BLOCK 0xA6
-#define IFSTATEMENT 0xA7
+#define STATEMENT 0xB0
+#define EXPRESSION 0xB1
+#define DECLARATION 0xB2
+#define FUNCTION 0xB3
+#define ARGUMENT 0xB4
+#define PARAMETER 0xB5
+#define BLOCK 0xB6
+#define IFSTATEMENT 0xB7
+#define WHILELOOPSTATEMENT 0xB8
+#define DOWHILELOOPSTATEMENT 0xB9
+#define FORLOOPSTATEMENT 0xBA
+#define ASSIGNMENT 0xBB
 #define PROGRAM 0xC0
 #define ROOT 0xC1
 #define ARRAY 0xD0
 
 
 typedef struct {
-    char type;
+    unsigned int type;
     char *text;
     unsigned int line;
 } Token;
 
+int isAnUnaryOperator(Token c);
 int isAnOperator(Token c);
 int isALiteral(Token c);
+int isAType(Token c);
 
 #endif
