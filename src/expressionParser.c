@@ -5,17 +5,18 @@
 #include "expressionParser.h"
 #include "parser.h"
 
-
-char *PRIORITY_LEVELS[] = {"||\\",
-                          "&&\\",
-                          "|\\",
-                          "^\\",
-                          "&\\",
-                          "==\\!=\\",
-                          "<\\>\\<=\\>=\\",
-                          "<<\\>>\\",
-                          "+\\-\\",
-                          "*\\/\\%\\"};
+const OPERATORS_COUNT = 19;
+Token *PRIORITY_LEVELS[] = {{ASSIGN},
+                           {OR},
+                           {AND},
+                           {BOR},
+                           {BXOR},
+                           {BAND},
+                           {EQ, NEQ},
+                           {GT, LT, GTE, LTE},
+                           {BSL, BSR},
+                           {PLUS, MINUS},
+                           {MULT, DIV, MOD}};
 
 Operator* operators;
 
@@ -23,21 +24,12 @@ TLM* tokenListManagerRef;
 
 void initExpressionParser(TLM* _tokenListManagerRef) {
     tokenListManagerRef = _tokenListManagerRef;
-    operators = malloc(sizeof(char) * 18);
-    unsigned char n = 0;
-    unsigned char k;
-    for (int i = 0; i < 10; i++) {
-        for (int j = 0; PRIORITY_LEVELS[i][j] != '\0'; j++) {
-            k = 0;
-            operators[n].op = malloc(sizeof(char) * 1);
+    operators = malloc(sizeof(char) * OPERATORS_COUNT);
+    int n = 0;
+    for (int i = 0; i < sizeof(PRIORITY_LEVELS); i++) {
+        for (int j = 0; j < sizeof(PRIORITY_LEVELS[i]); j++) {
+            operators[n].op = PRIORITY_LEVELS[i][j];
             operators[n].precedence = i;
-            while (PRIORITY_LEVELS[i][j] != '\\') {
-                operators[n].op = realloc(operators[n].op, sizeof(char) * j + 2);
-                operators[n].op[k] = PRIORITY_LEVELS[i][j];
-                operators[n].op[k+1] = '\0';
-                j++;
-                k++;
-            }
             n++;
         }
     }
@@ -63,8 +55,7 @@ int getOperatorPrecedence(char *op) {
 }
 
 ExpressionToken* getExpressionTokens() {
-    ExpressionToken* tokenList;
-    int index = 0;
+    int minPriorityIndex = 0;
     int parenthesisCount = 0;
 
     while(1) {
@@ -77,7 +68,7 @@ ExpressionToken* getExpressionTokens() {
 
         // Verify if expression is finished
         if (// Verify parenthesis count
-            parenthesisCount == -1 || 
+            parenthesisCount == -1 ||
             // Verify if is a semicolon
             tokenListManagerRef->tokens[tokenListManagerRef->index].type == SEMICOLON ||
             // Verify if is a comma
@@ -87,14 +78,30 @@ ExpressionToken* getExpressionTokens() {
             // Verify if is the end of the file
             tokenListManagerRef->tokens[tokenListManagerRef->index].type == EOF ||
             // Verify if there are two non-operators in sequence
-            (index == 0 ? 0 : 
+            (index == 0 ? 0 :
             !isAnOperator(tokenListManagerRef->tokens[tokenListManagerRef->index]) &&
             !isAnOperator(tokenListManagerRef->tokens[tokenListManagerRef->index]))
             ) break;
-        
 
+        // Verify if is an operator
+        if (isAnOperator(tokenListManagerRef->tokens[tokenListManagerRef->index])) {
+            // Verify if is a unary operator
+            if (isAnUnaryOperator(tokenListManagerRef->tokens[tokenListManagerRef->index]) && (index == 0 || isAnOperator(tokenListManagerRef->tokens[tokenListManagerRef->index - 1] || tokenListManagerRef->tokens[tokenListManagerRef->index - 1].type == LBRACK))) {
+                tokenList[index].token = tokenListManagerRef->tokens[tokenListManagerRef->index];
+                tokenList[index].unary = 1;
+                tokenList[index].precedence = getOperatorPrecedence(tokenListManagerRef->tokens[tokenListManagerRef->index].text) + getOperatorPrecedence(tokenListManagerRef->tokens[tokenListManagerRef->index].text) *
+            } else {
 
+                tokenList[index].
+            }
+            tokenList[index].precedence += 10 * parenthesisCount;
+        } else {
+            tokenList[index].literal = 1;
+            tokenList[index].value = tokenListManagerRef->tokens[tokenListManagerRef->index].value;
+            index++;
+        }
 
+        tokenListManagerRef->index++;
         index++;
     }
 }

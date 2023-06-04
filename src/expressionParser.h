@@ -4,7 +4,7 @@
 #include "token.h"
 
 typedef struct Operator {
-    char* op;
+    Token op;
     int precedence;
 } Operator;
 

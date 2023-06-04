@@ -27,24 +27,6 @@ node parseExpression() {
     return expression;
 }
 
-node parseAssignment() {
-    node assignment;
-    assignment.data.type = ASSIGNMENT;
-    assignment.length = 0;
-    assignment.children = (node*) malloc(sizeof(node));
-
-    // Verify assignment
-    if (tokenListManager.tokens[tokenListManager.index].type == VAR) {
-        tokenListManager.index++;
-        if (tokenListManager.tokens[tokenListManager.index].type == ASSIGN) {
-            tokenListManager.index++;
-            addChild(assignment, parseExpression());
-        }
-    }
-
-    return assignment;
-}
-
 node parseDeclaration() {
     node declaration;
     declaration.data.type = DECLARATION;
@@ -203,15 +185,6 @@ node parseStatement()
     else if (isAType(tokenListManager.tokens[tokenListManager.index])) {
         printf("Declaration\n");
         addChild(statement, parseDeclaration());
-    }
-
-    // Verify assignment
-    else if (tokenListManager.tokens[tokenListManager.index].type == VAR) {
-        if (tokenListManager.tokens[tokenListManager.index].type == ASSIGN) {
-            printf("Assign\n");
-            addChild(statement, parseAssignment());
-
-        }
     }
 
     // Verify while loop

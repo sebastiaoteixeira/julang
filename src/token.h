@@ -58,8 +58,9 @@
 #define BAND 0x8C
 #define BOR 0x8D
 #define BXOR 0x8E
-// Assignment Operators
-#define ASSIGN 0x90
+#define ASSIGN 0x8F
+#define BSL 0x90
+#define BSR 0x91
 // Other
 #define IMPORT 0xA0
 #define RETURN 0xA1
