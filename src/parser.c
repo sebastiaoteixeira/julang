@@ -40,7 +40,7 @@ node parseDeclaration() {
             tokenListManager.index++;
             if (tokenListManager.tokens[tokenListManager.index].type == ASSIGN) {
                 tokenListManager.index--;
-                addChild(declaration, parseAssignment());
+                addChild(declaration, parseExpression());
             }
         }
     }

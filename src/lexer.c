@@ -127,7 +127,6 @@ Token wordReader(FILE* iCode)
 
     int length = 0;
     while(isDigit(c) || c == '_' || isLetter(c)) {
-        printf("%c", c);
         length++;
         string = (char *) realloc(string, sizeof(char) * length);
         *(string + length - 1) = c;
@@ -137,7 +136,6 @@ Token wordReader(FILE* iCode)
     length++;
     string = (char *) realloc(string, sizeof(char) * length);
     *(string + length - 1) = '\0';
-    printf("\n");
     if (reservedWordVerifier(string)) t.type = reservedWordVerifier(string);
     else t.type = VAR;
     t.text = string;

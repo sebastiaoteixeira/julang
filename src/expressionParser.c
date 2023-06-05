@@ -5,8 +5,8 @@
 #include "expressionParser.h"
 #include "parser.h"
 
-const OPERATORS_COUNT = 19;
-Token *PRIORITY_LEVELS[] = {{ASSIGN},
+const int OPERATORS_COUNT = 19;
+const int **PRIORITY_LEVELS = {{ASSIGN},
                            {OR},
                            {AND},
                            {BOR},
@@ -36,29 +36,47 @@ void initExpressionParser(TLM* _tokenListManagerRef) {
     return;
 }
 
-int isOperator(char *op) {
-    for (int i = 0; i < 18; i++) {
-        if (strcmp(operators[i].op, op) == 0) {
-            return 1;
-        }
+int isOperator(Token op) {
+    for (int i = 0; i < OPERATORS_COUNT; i++) {
+        if (operators[i].op == op.type) return 1;
     }
     return 0;
 }
 
-int getOperatorPrecedence(char *op) {
-    for (int i = 0; i < 18; i++) {
-        if (strcmp(operators[i].op, op) == 0) {
-            return operators[i].precedence;
-        }
+int getOperatorPrecedence(Token op) {
+    for (int i = 0; i < OPERATORS_COUNT; i++) {
+        if (operators[i].op == op.type) return operators[i].precedence;
     }
     return -1;
 }
 
-ExpressionToken* getExpressionTokens() {
-    int minPriorityIndex = 0;
+int getExpressionLength() {
     int parenthesisCount = 0;
+    int index = 0;
 
     while(1) {
+        // Verify if expression is finished
+        if (// Verify parenthesis count
+            parenthesisCount == -1 || (parenthesisCount == 0 &&
+            // Verify if is a semicolon
+            tokenListManagerRef->tokens[tokenListManagerRef->index].type == SEMICOLON ||
+            // Verify if is a comma
+            tokenListManagerRef->tokens[tokenListManagerRef->index].type == COMMA ||
+            // Verify if is the start of a block
+            tokenListManagerRef->tokens[tokenListManagerRef->index].type == LBRACE ||
+            // Verify if is the end of a block
+            tokenListManagerRef->tokens[tokenListManagerRef->index].type == RBRACE ||
+            // Verify if is the end of the file
+            tokenListManagerRef->tokens[tokenListManagerRef->index].type == EOF ||
+            // Verify if there are two non-operators in sequence
+            (index == 0 ? 0 :
+            !isAnOperator(tokenListManagerRef->tokens[tokenListManagerRef->index - 1]) &&
+            !isAnOperator(tokenListManagerRef->tokens[tokenListManagerRef->index]))
+        )) {
+            tokenListManagerRef->index -= index;
+            return index;
+            }
+
         // Count parenthesis
         if (tokenListManagerRef->tokens[tokenListManagerRef->index].type == LBRACK) {
             parenthesisCount++;
@@ -66,24 +84,13 @@ ExpressionToken* getExpressionTokens() {
             parenthesisCount--;
         }
 
-        // Verify if expression is finished
-        if (// Verify parenthesis count
-            parenthesisCount == -1 ||
-            // Verify if is a semicolon
-            tokenListManagerRef->tokens[tokenListManagerRef->index].type == SEMICOLON ||
-            // Verify if is a comma
-            tokenListManagerRef->tokens[tokenListManagerRef->index].type == COMMA ||
-            // Verify if is the end of a block
-            tokenListManagerRef->tokens[tokenListManagerRef->index].type == RBRACE ||
-            // Verify if is the end of the file
-            tokenListManagerRef->tokens[tokenListManagerRef->index].type == EOF ||
-            // Verify if there are two non-operators in sequence
-            (index == 0 ? 0 :
-            !isAnOperator(tokenListManagerRef->tokens[tokenListManagerRef->index]) &&
-            !isAnOperator(tokenListManagerRef->tokens[tokenListManagerRef->index]))
-            ) break;
+        tokenListManagerRef->index++;
+        index++;
+    }
+}
 
-        // Verify if is an operator
+/*
+// Verify if is an operator
         if (isAnOperator(tokenListManagerRef->tokens[tokenListManagerRef->index])) {
             // Verify if is a unary operator
             if (isAnUnaryOperator(tokenListManagerRef->tokens[tokenListManagerRef->index]) && (index == 0 || isAnOperator(tokenListManagerRef->tokens[tokenListManagerRef->index - 1] || tokenListManagerRef->tokens[tokenListManagerRef->index - 1].type == LBRACK))) {
@@ -100,14 +107,13 @@ ExpressionToken* getExpressionTokens() {
             tokenList[index].value = tokenListManagerRef->tokens[tokenListManagerRef->index].value;
             index++;
         }
-
-        tokenListManagerRef->index++;
-        index++;
-    }
-}
+*/
 
 node getExpressionAST() {
     node rootOperation;
+
+    // Get expression length
+    int expressionLength = getExpressionLength();
 
 
     // Verify parenthized expression
@@ -118,7 +124,7 @@ node getExpressionAST() {
             (*tokenListManagerRef).index++;
         } else {
             printf("Error: expected ')' at line %d\n", (*tokenListManagerRef).tokens[(*tokenListManagerRef).index].line);
-            //exit(1);
+            exit(1);
         }
     }
 

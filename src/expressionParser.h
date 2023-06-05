@@ -4,7 +4,7 @@
 #include "token.h"
 
 typedef struct Operator {
-    Token op;
+    int op;
     int precedence;
 } Operator;
 
@@ -17,8 +17,8 @@ typedef struct ExpressionToken {
 
 
 void initExpressionParser(TLM* tokenListManagerRef);
-int isOperator(char *c);
-int getOperatorPrecedence(char *op);
+int isOperator(Token c);
+int getOperatorPrecedence(Token op);
 node getExpressionAST();
 
 #endif
