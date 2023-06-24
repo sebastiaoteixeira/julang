@@ -299,19 +299,17 @@ node parseBlock()
     return block;
 }
 
-node parseProgram()
+void parseProgram(node root)
 {
-    node program;
-    program.data.type = PROGRAM;
-    program.length = 0;
-    program.children = (node*) malloc(sizeof(node));
+    printf("%d\n", sizeof(node));
+    root.children = (node*) malloc(sizeof(node));
 
     node* statmentList = parseStatementList();
     for (int i = 0; i < statmentList[i].data.type != EOF; i++) {
-        addChild(program, statmentList[i]);
+        addChild(root, statmentList[i]);
     }
 
-    return program;
+    return;
 }
 
 node runParser(Token *tokenList)
@@ -323,6 +321,6 @@ node runParser(Token *tokenList)
 
     node ASTRoot;
     ASTRoot.data.type = ROOT;
-    addChild(ASTRoot, parseProgram());
+    parseProgram(ASTRoot);
     return ASTRoot;
 }

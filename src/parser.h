@@ -9,9 +9,9 @@ typedef struct TLMs {
 } TLM;
 
 // Declare AST node
-typedef struct node {
+typedef struct Node {
     Token data;
-    struct node *children;
+    struct Node *children;
     int length;
 } node;
 

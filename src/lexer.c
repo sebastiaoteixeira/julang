@@ -157,7 +157,6 @@ Token nextToken(FILE *iCode)
         case '\t':
         case '\r':
             continue;
-        // Sigle
         case ',':
             t.type = COMMA;
             t.text = charToString(c);

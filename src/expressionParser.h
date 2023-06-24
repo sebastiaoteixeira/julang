@@ -3,7 +3,7 @@
 #include "parser.h"
 #include "token.h"
 
-typedef struct Operator {
+typedef struct {
     int op;
     int precedence;
 } Operator;
@@ -14,6 +14,9 @@ typedef struct ExpressionToken {
     int unary;
     int precedence;
 } ExpressionToken;
+
+
+
 
 
 void initExpressionParser(TLM* tokenListManagerRef);

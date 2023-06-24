@@ -5,29 +5,33 @@
 #include "expressionParser.h"
 #include "parser.h"
 
+
+
 const int OPERATORS_COUNT = 19;
-const int **PRIORITY_LEVELS = {{ASSIGN},
-                           {OR},
-                           {AND},
-                           {BOR},
-                           {BXOR},
-                           {BAND},
-                           {EQ, NEQ},
+const char PRIORITY_LEVELS[11][4] = {{ASSIGN, 0, 0, 0},
+                           {OR, 0, 0, 0},
+                           {AND, 0, 0, 0},
+                           {BOR, 0, 0, 0},
+                           {BXOR, 0, 0, 0},
+                           {BAND, 0, 0, 0},
+                           {EQ, NEQ, 0, 0, 0},
                            {GT, LT, GTE, LTE},
-                           {BSL, BSR},
-                           {PLUS, MINUS},
-                           {MULT, DIV, MOD}};
+                           {BSL, BSR, 0, 0},
+                           {PLUS, MINUS, 0, 0},
+                           {MULT, DIV, MOD, 0}};
+
 
 Operator* operators;
-
 TLM* tokenListManagerRef;
+
 
 void initExpressionParser(TLM* _tokenListManagerRef) {
     tokenListManagerRef = _tokenListManagerRef;
     operators = malloc(sizeof(char) * OPERATORS_COUNT);
     int n = 0;
-    for (int i = 0; i < sizeof(PRIORITY_LEVELS); i++) {
-        for (int j = 0; j < sizeof(PRIORITY_LEVELS[i]); j++) {
+    for (int i = 0; i < 11; i++) {
+        for (int j = 0; j < 4; j++) {
+            if (PRIORITY_LEVELS[i][j] == 0) continue;
             operators[n].op = PRIORITY_LEVELS[i][j];
             operators[n].precedence = i;
             n++;
