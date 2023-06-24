@@ -11,8 +11,22 @@ TLM tokenListManager;
 void addChild(node parent, node child)
 {
     parent.length++;
-    parent.children = (node *) realloc(parent.children, sizeof(node) * parent.length);
+    if (parent.length > 1)
+        parent.children = (node *) realloc(parent.children, sizeof(node) * parent.length);
     parent.children[parent.length - 1] = child;
+}
+
+void addNChildren(node parent, node* children, int n)
+{
+
+    printf("Adding %d children from %x to %x ...\n", n, children, parent.children);
+    parent.length += n;
+    if (parent.length > 1) {
+        printf("Increasing capacity of node %x for %d children = %d bytes\n", parent.children, parent.length, sizeof(node) * parent.length);
+        parent.children = (node *) realloc(parent.children, sizeof(node) * parent.length);
+    }
+    for (int i = parent.length - n; i < parent.length; i++)
+        parent.children[i] = children[i - parent.length];
 }
 
 node parseExpression() {
@@ -142,7 +156,6 @@ node parseBreakStatement() {
     node breakStatement;
     breakStatement.data.type = BREAK;
     breakStatement.length = 0;
-    breakStatement.children = (node*) malloc(sizeof(node));
 
     // Verify break statement
     if (tokenListManager.tokens[tokenListManager.index].type == BREAK) {
@@ -156,7 +169,6 @@ node parseContinueStatement() {
     node continueStatement;
     continueStatement.data.type = CONTINUE;
     continueStatement.length = 0;
-    continueStatement.children = (node*) malloc(sizeof(node));
 
     // Verify continue statement
     if (tokenListManager.tokens[tokenListManager.index].type == CONTINUE) {
@@ -235,8 +247,15 @@ node parseStatement()
         addChild(statement, parseExpression());
     }
 
+    // Verify if is the End Of File
     else if (tokenListManager.tokens[tokenListManager.index].type == EOF) {
         printf("EOF\n");
+        statement.data.type = EOF;
+    }
+
+    // Verify if is the end of a block
+    else if (tokenListManager.tokens[tokenListManager.index].type == RBRACE) {
+        printf("End of block\n");
         statement.data.type = EOF;
     }
 
@@ -255,11 +274,18 @@ node parseStatement()
 
 node* parseStatementList()
 {
-    node* statementList = malloc(sizeof(node));
+    node* statementList = (node *) malloc(2 * sizeof(node));
+    printf("New statementList address %x\n", statementList);
     int length = 0;
+    int capacity = 2;
     while (1) {
-        length++;
-        statementList = realloc(statementList, sizeof(node) * length);
+        if (++length > capacity) {
+            capacity <<= 1;
+            printf("Allocating to statementList (address %x) %d nodes (%d bytes per node) = %d bytes\n", statementList, capacity, sizeof(node), capacity * sizeof(node));
+            statementList = (node *) realloc(statementList, sizeof(node) * capacity);
+            printf("New address %x\n", statementList);
+
+        }
         statementList[length - 1] = parseStatement();
         if (statementList[length - 1].data.type == EOF) break;
     }
@@ -273,27 +299,29 @@ node parseBlock()
     block.length = 0;
     block.children = (node*) malloc(sizeof(node));
 
-    /*
-    TODO: Add check for '{'
-    if (tokenList[0].type != LBRACE) {
-        printf("Error: Expected '{' at line %d\n", tokenList[0].line);
+
+    if (tokenListManager.tokens[tokenListManager.index].type != LBRACE) {
+        printf("Error: Expected '{' at line %d\n",
+            tokenListManager.tokens[tokenListManager.index].line);
         exit(1);
     }
-    */
-   tokenListManager.index++;
+    tokenListManager.index++;
 
-    node* statmentList = parseStatementList();
-    for (int i = 0; i < statmentList[i].data.type != EOF; i++) {
-        addChild(block, statmentList[i]);
+    node* statementList = parseStatementList();
+
+    int len = 0;
+    for (int i = 0; statementList[i].data.type != EOF; i++) {
+        len++;
     }
+    addNChildren(block, statementList, len);
+    printf("Destroy statementList %x\n", statementList);
+    free(statementList);
 
-    /*
-    TODO: Add check for '}'
-    if (tokenList[0].type != RBRACE) {
-        printf("Error: Expected '}' at line %d\n", tokenList[0].line);
+    if (tokenListManager.tokens[tokenListManager.index].type != RBRACE) {
+        printf("Error: Expected '}' at line %d\n",
+            tokenListManager.tokens[tokenListManager.index].line);
         exit(1);
     }
-    */
     tokenListManager.index++;
 
     return block;
@@ -301,26 +329,36 @@ node parseBlock()
 
 void parseProgram(node root)
 {
-    printf("%d\n", sizeof(node));
-    root.children = (node*) malloc(sizeof(node));
+    node* statementList = parseStatementList();
 
-    node* statmentList = parseStatementList();
-    for (int i = 0; i < statmentList[i].data.type != EOF; i++) {
-        addChild(root, statmentList[i]);
+    if (tokenListManager.tokens[tokenListManager.index].type == RBRACE) {
+        printf("Error: Unexpected '}' at line %d\n",
+            tokenListManager.tokens[tokenListManager.index].line);
+        exit(1);
     }
+
+    int len = 0;
+    for (int i = 0; statementList[i].data.type != EOF; i++) {
+        len++;
+    }
+    addNChildren(root, statementList, len);
 
     return;
 }
 
 node runParser(Token *tokenList)
 {
-    initExpressionParser((TLM *) &tokenListManager);
+    //initExpressionParser((TLM *) &tokenListManager);
 
     tokenListManager.tokens = tokenList;
     tokenListManager.index = 0;
 
     node ASTRoot;
     ASTRoot.data.type = ROOT;
+    printf("%d\n", sizeof(node));
+    ASTRoot.children = (node*) malloc(sizeof(node));
+
     parseProgram(ASTRoot);
+
     return ASTRoot;
 }

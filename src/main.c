@@ -3,6 +3,8 @@
 #include "lexer.h"
 #include "parser.h"
 
+static const verbose = 4;
+
 FILE *readFile(char *fileName)
 {
     FILE *fp;
@@ -22,7 +24,9 @@ int main(int argc, char **argv)
     FILE *inputCode = readFile(argv[1]);
 
     Token *tokenList = runLexer(inputCode);
-    printTokenList(tokenList);
+
+    if (verbose >= 4)
+        printTokenList(tokenList);
 
     node ast = runParser(tokenList);
 

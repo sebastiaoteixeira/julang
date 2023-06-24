@@ -84,7 +84,7 @@
 
 
 typedef struct {
-    unsigned int type;
+    char type;
     char *text;
     unsigned int line;
 } Token;

@@ -302,6 +302,7 @@ Token nextToken(FILE *iCode)
     }
     t.type = EOF;
     t.line = linecount;
+    t.text = "\0";
     return t;
 }
 
