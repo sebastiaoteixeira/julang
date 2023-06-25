@@ -63,7 +63,7 @@ node parseLiteralArray() {
 
 
     // An array starts with a left bracket
-    if (tokenListManagerRef->tokens[tokenListManagerRef->index].type == LBRACK) {
+    if (tokenListManagerRef->tokens[tokenListManagerRef->index].type == LSQBRACK) {
         tokenListManagerRef->index++;
     } else {
         printf("Error: Expected '[' at line %d\n", tokenListManagerRef->tokens[tokenListManagerRef->index].line);
@@ -80,7 +80,7 @@ node parseLiteralArray() {
             continue;
         }
         
-        if (tokenListManagerRef->tokens[tokenListManagerRef->index].type == RBRACK) {
+        if (tokenListManagerRef->tokens[tokenListManagerRef->index].type == RSQBRACK) {
             tokenListManagerRef->index++;
             return array;
         }
@@ -121,7 +121,7 @@ node getOperand() {
     }
 
     // Verify if the operand is a Literal Array
-    else if (tokenListManagerRef->tokens[tokenListManagerRef->index].type == LBRACK) {
+    else if (tokenListManagerRef->tokens[tokenListManagerRef->index].type == LSQBRACK) {
         return parseLiteralArray();
     }
 
