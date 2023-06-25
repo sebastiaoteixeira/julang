@@ -123,7 +123,10 @@ node getExpressionAST(int minPrecedence) {
     while(1) {
         // If the next token is not an operator, return the child node
         if (!isOperator(tokenListManagerRef->tokens[tokenListManagerRef->index])
-            || getOperatorPrecedence(tokenListManagerRef->tokens[tokenListManagerRef->index]) < minPrecedence) {
+            || getOperatorPrecedence(tokenListManagerRef->tokens[tokenListManagerRef->index]) <= minPrecedence 
+            /* if  < operation precedence is right-to-left direction
+               if <= operation precedence is left-to-right direction*/
+            ) {
             return childNode;
         }
 
