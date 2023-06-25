@@ -348,7 +348,7 @@ void parseProgram(node root)
 
 node runParser(Token *tokenList)
 {
-    //initExpressionParser((TLM *) &tokenListManager);
+    initExpressionParser((TLM *) &tokenListManager);
 
     tokenListManager.tokens = tokenList;
     tokenListManager.index = 0;
