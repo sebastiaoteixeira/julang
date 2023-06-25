@@ -1,8 +1,6 @@
 *.save
 *.cbp
-*.vscode/*
-*.code-workspace
-*.xml
+.vscode/*
+.code-workspace
+.xml
 vgcore.*
-*.o
-bin/*
