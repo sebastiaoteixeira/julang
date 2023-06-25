@@ -13,7 +13,7 @@ int isLetter(char c)
 
 int isWordChar(char c)
 {
-    return isLetter(c) || c == "_";
+    return isLetter(c) || c == '_';
 }
 
 int isDigit(char c)
@@ -101,6 +101,8 @@ int reservedWordVerifier(char* string)
     if (strcmp(string, "while") == 0) return WHILE;
     if (strcmp(string, "for") == 0) return FOR;
     if (strcmp(string, "do") == 0) return DO;
+    if (strcmp(string, "break") == 0) return BREAK;
+    if (strcmp(string, "continue") == 0) return CONTINUE;
     if (strcmp(string, "call") == 0) return CALL;
     if (strcmp(string, "asm") == 0) return ASM;
     if (strcmp(string, "true") == 0) return TRUE;
@@ -126,7 +128,7 @@ Token wordReader(FILE* iCode)
     Token t;
 
     int length = 0;
-    while(isDigit(c) || c == '_' || isLetter(c)) {
+    while(isDigit(c) || isWordChar(c)) {
         length++;
         string = (char *) realloc(string, sizeof(char) * length);
         *(string + length - 1) = c;
