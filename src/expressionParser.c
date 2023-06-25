@@ -55,88 +55,91 @@ int getOperatorPrecedence(Token op) {
     return -1;
 }
 
-int getExpressionLength() {
-    int parenthesisCount = 0;
-    int index = 0;
+node parseLiteralArray() {
+    // Create a new node
+    node array;
+    array.data.type = ARRAY;
+    array.children = (node *) malloc(sizeof(node) * 2);
 
-    while(1) {
-        // Verify if expression is finished
-        if (// Verify parenthesis count
-            parenthesisCount == -1 || (parenthesisCount == 0 &&
-            // Verify if is a semicolon
-            tokenListManagerRef->tokens[tokenListManagerRef->index].type == SEMICOLON ||
-            // Verify if is a comma
-            tokenListManagerRef->tokens[tokenListManagerRef->index].type == COMMA ||
-            // Verify if is the start of a block
-            tokenListManagerRef->tokens[tokenListManagerRef->index].type == LBRACE ||
-            // Verify if is the end of a block
-            tokenListManagerRef->tokens[tokenListManagerRef->index].type == RBRACE ||
-            // Verify if is the end of the file
-            tokenListManagerRef->tokens[tokenListManagerRef->index].type == EOF ||
-            // Verify if there are two non-operators in sequence
-            (index == 0 ? 0 :
-            !isAnOperator(tokenListManagerRef->tokens[tokenListManagerRef->index - 1]) &&
-            !isAnOperator(tokenListManagerRef->tokens[tokenListManagerRef->index]))
-        )) {
-            tokenListManagerRef->index -= index;
-            return index;
-            }
 
-        // Count parenthesis
-        if (tokenListManagerRef->tokens[tokenListManagerRef->index].type == LBRACK) {
-            parenthesisCount++;
-        } else if (tokenListManagerRef->tokens[tokenListManagerRef->index].type == RBRACK) {
-            parenthesisCount--;
-        }
-
+    // An array starts with a left bracket
+    if (tokenListManagerRef->tokens[tokenListManagerRef->index].type == LBRACK) {
         tokenListManagerRef->index++;
-        index++;
+    } else {
+        printf("Error: Expected '[' at line %d\n", tokenListManagerRef->tokens[tokenListManagerRef->index].line);
+        exit(1);
     }
-}
 
-/*
-// Verify if is an operator
-        if (isAnOperator(tokenListManagerRef->tokens[tokenListManagerRef->index])) {
-            // Verify if is a unary operator
-            if (isAnUnaryOperator(tokenListManagerRef->tokens[tokenListManagerRef->index]) && (index == 0 || isAnOperator(tokenListManagerRef->tokens[tokenListManagerRef->index - 1] || tokenListManagerRef->tokens[tokenListManagerRef->index - 1].type == LBRACK))) {
-                tokenList[index].token = tokenListManagerRef->tokens[tokenListManagerRef->index];
-                tokenList[index].unary = 1;
-                tokenList[index].precedence = getOperatorPrecedence(tokenListManagerRef->tokens[tokenListManagerRef->index].text) + getOperatorPrecedence(tokenListManagerRef->tokens[tokenListManagerRef->index].text) *
-            } else {
+    // Alternate between expressions and commas until a right bracket is found
+    while (1) {
+        // Parse expression
+        addChild(array, getExpressionAST(0));
 
-                tokenList[index].
-            }
-            tokenList[index].precedence += 10 * parenthesisCount;
-        } else {
-            tokenList[index].literal = 1;
-            tokenList[index].value = tokenListManagerRef->tokens[tokenListManagerRef->index].value;
-            index++;
+        if (tokenListManagerRef->tokens[tokenListManagerRef->index].type == COMMA) {
+            tokenListManagerRef->index++;
+            continue;
         }
-*/
-
-node getExpressionAST() {
-    node rootOperation;
-
-    // Get expression length
-    int expressionLength = getExpressionLength();
-
-
-    // Verify parenthized expression
-    if ((*tokenListManagerRef).tokens[(*tokenListManagerRef).index].type == LBRACK) {
-        (*tokenListManagerRef).index++;
-        rootOperation = getExpressionAST();
-        if ((*tokenListManagerRef).tokens[(*tokenListManagerRef).index].type == RBRACK) {
-            (*tokenListManagerRef).index++;
-        } else {
-            printf("Error: expected ')' at line %d\n", (*tokenListManagerRef).tokens[(*tokenListManagerRef).index].line);
+        
+        if (tokenListManagerRef->tokens[tokenListManagerRef->index].type == RBRACK) {
+            tokenListManagerRef->index++;
+            return array;
+        }
+        else {
+            printf("Error: Expected ']' at line %d\n", tokenListManagerRef->tokens[tokenListManagerRef->index].line);
             exit(1);
         }
     }
+}
 
-    // Verify unary operation
-    else if (isAnUnaryOperator((*tokenListManagerRef).tokens[(*tokenListManagerRef).index])) {
-        // TODO: Verify unary operation
+node getParenthisedExpression() {
+    // Verify if the expression is parenthised
+    if (tokenListManagerRef->tokens[tokenListManagerRef->index].type == LBRACK) {
+        tokenListManagerRef->index++;
+        node expression = getExpressionAST(0);
+        if (tokenListManagerRef->tokens[tokenListManagerRef->index].type == RBRACK) {
+            tokenListManagerRef->index++;
+            return expression;
+        } else {
+            printf("Error: Expected ')' at line %d\n", tokenListManagerRef->tokens[tokenListManagerRef->index].line);
+            exit(1);
+        }
+    } else {
+        printf("Error: Expected '(' at line %d\n", tokenListManagerRef->tokens[tokenListManagerRef->index].line);
+        exit(1);
     }
+}
+
+
+node getOperand() {
+    // Verify if the operand is a literal or a variable
+    if (tokenListManagerRef->tokens[tokenListManagerRef->index].type & 0xf0 == 0x30
+        || tokenListManagerRef->tokens[tokenListManagerRef->index].type == VAR) {
+        node operand;
+        operand.data = tokenListManagerRef->tokens[tokenListManagerRef->index];
+        tokenListManagerRef->index++;
+        return operand;
+    }
+
+    // Verify if the operand is a Literal Array
+    else if (tokenListManagerRef->tokens[tokenListManagerRef->index].type == LBRACK) {
+        return parseLiteralArray();
+    }
+
+    // Verify if the operand is a parenthised expression
+    else if (tokenListManagerRef->tokens[tokenListManagerRef->index].type == LBRACK) {
+        return getParenthisedExpression();
+    }
+
+    else {
+        printf("Error: Expected operand at line %d\n", tokenListManagerRef->tokens[tokenListManagerRef->index].line);
+        exit(1);
+    }
+}
+
+node getExpressionAST(int minPrecedence) {
+    node rootOperation;
+
+
 
     return rootOperation;
 }
