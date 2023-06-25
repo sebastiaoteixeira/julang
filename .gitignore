@@ -1,6 +1,11 @@
 *.save
 *.cbp
 .vscode/*
-.code-workspace
-.xml
+*.code-workspace
+*.xml
+*.gch
+*.depend
+<invalid path>
 vgcore.*
+bin/*
+out/*
