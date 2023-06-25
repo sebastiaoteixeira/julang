@@ -40,7 +40,7 @@ node parseLiteralArray() {
     // Create a new node
     node array;
     array.data.type = ARRAY;
-    array.children = (node *) malloc(sizeof(node) * 2);
+    array.children = (node *) malloc(sizeof(node));
 
 
     // An array starts with a left bracket
@@ -118,11 +118,28 @@ node getOperand() {
 }
 
 node getExpressionAST(int minPrecedence) {
-    node rootOperation;
+    node childNode = getOperand();
 
+    while(1) {
+        // If the next token is not an operator, return the child node
+        if (!isOperator(tokenListManagerRef->tokens[tokenListManagerRef->index])
+            || getOperatorPrecedence(tokenListManagerRef->tokens[tokenListManagerRef->index]) < minPrecedence) {
+            return childNode;
+        }
 
+        node rootOperation;
+        addChild(rootOperation, childNode);
 
-    return rootOperation;
+        // Get the operator
+        rootOperation.data = tokenListManagerRef->tokens[tokenListManagerRef->index];
+        tokenListManagerRef->index++;
+
+        // Get the second operand
+        addChild(rootOperation, getExpressionAST(getOperatorPrecedence(rootOperation.data)));
+
+        childNode = rootOperation;
+    }
+
 }
 
 /*def calcLessPriotity(expr):
