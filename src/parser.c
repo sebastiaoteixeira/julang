@@ -35,7 +35,7 @@ node parseExpression() {
     expression.length = 0;
     expression.children = (node*) malloc(sizeof(node));
 
-    node expressionRootOperation = getExpressionAST();
+    node expressionRootOperation = getExpressionAST(0);
     addChild(expression, expressionRootOperation);
 
     return expression;

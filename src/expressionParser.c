@@ -6,25 +6,6 @@
 #include "parser.h"
 
 
-
-const int OPERATORS_COUNT = 19;
-const char PRIORITY_LEVELS[11][4] = {{ASSIGN, 0, 0, 0},
-                                     {OR, 0, 0, 0},
-                                     {AND, 0, 0, 0},
-                                     {BOR, 0, 0, 0},
-                                     {BXOR, 0, 0, 0},
-                                     {BAND, 0, 0, 0},
-                                     {EQ, NEQ, 0, 0},
-                                     {GT, LT, GTE, LTE},
-                                     {BSL, BSR, 0, 0},
-                                     {PLUS, MINUS, 0, 0},
-                                     {MULT, DIV, MOD, 0}};
-
-
-Operator* operators;
-TLM* tokenListManagerRef;
-
-
 void initExpressionParser(TLM* _tokenListManagerRef) {
     tokenListManagerRef = _tokenListManagerRef;
     operators = (Operator *) malloc(sizeof(Operator) * OPERATORS_COUNT);
@@ -34,7 +15,7 @@ void initExpressionParser(TLM* _tokenListManagerRef) {
             if (PRIORITY_LEVELS[i][j] == 0) continue;
             printf("Setting operator %x\n", PRIORITY_LEVELS[i][j]);
             operators[n].op = PRIORITY_LEVELS[i][j];
-            operators[n].precedence = i;
+            operators[n].precedence = i + 1;
             n++;
         }
     }
@@ -43,159 +24,150 @@ void initExpressionParser(TLM* _tokenListManagerRef) {
 
 int isOperator(Token op) {
     for (int i = 0; i < OPERATORS_COUNT; i++) {
-        if (operators[i].op == op.type) return 1;
+        if (operators[i].op == op.type)
+            return 1;
     }
     return 0;
 }
 
 int getOperatorPrecedence(Token op) {
     for (int i = 0; i < OPERATORS_COUNT; i++) {
-        if (operators[i].op == op.type) return operators[i].precedence;
+        if (operators[i].op == op.type)
+            return operators[i].precedence;
     }
     return -1;
 }
 
-int getExpressionLength() {
-    int parenthesisCount = 0;
-    int index = 0;
+node parseLiteralArray() {
+    // Create a new node
+    node array;
+    array.data.type = ARRAY;
+    array.length = 0;
+    array.children = (node *) malloc(sizeof(node));
 
-    while(1) {
-        // Verify if expression is finished
-        if (// Verify parenthesis count
-            parenthesisCount == -1 || (parenthesisCount == 0 &&
-            // Verify if is a semicolon
-            tokenListManagerRef->tokens[tokenListManagerRef->index].type == SEMICOLON ||
-            // Verify if is a comma
-            tokenListManagerRef->tokens[tokenListManagerRef->index].type == COMMA ||
-            // Verify if is the start of a block
-            tokenListManagerRef->tokens[tokenListManagerRef->index].type == LBRACE ||
-            // Verify if is the end of a block
-            tokenListManagerRef->tokens[tokenListManagerRef->index].type == RBRACE ||
-            // Verify if is the end of the file
-            tokenListManagerRef->tokens[tokenListManagerRef->index].type == EOF ||
-            // Verify if there are two non-operators in sequence
-            (index == 0 ? 0 :
-            !isAnOperator(tokenListManagerRef->tokens[tokenListManagerRef->index - 1]) &&
-            !isAnOperator(tokenListManagerRef->tokens[tokenListManagerRef->index]))
-        )) {
-            tokenListManagerRef->index -= index;
-            return index;
-            }
 
-        // Count parenthesis
-        if (tokenListManagerRef->tokens[tokenListManagerRef->index].type == LBRACK) {
-            parenthesisCount++;
-        } else if (tokenListManagerRef->tokens[tokenListManagerRef->index].type == RBRACK) {
-            parenthesisCount--;
-        }
-
+    // An array starts with a left bracket
+    if (tokenListManagerRef->tokens[tokenListManagerRef->index].type == LSQBRACK) {
         tokenListManagerRef->index++;
-        index++;
+    } else {
+        printf("Error: Expected '[' at line %d\n", tokenListManagerRef->tokens[tokenListManagerRef->index].line);
+        exit(1);
     }
-}
 
-/*
-// Verify if is an operator
-        if (isAnOperator(tokenListManagerRef->tokens[tokenListManagerRef->index])) {
-            // Verify if is a unary operator
-            if (isAnUnaryOperator(tokenListManagerRef->tokens[tokenListManagerRef->index]) && (index == 0 || isAnOperator(tokenListManagerRef->tokens[tokenListManagerRef->index - 1] || tokenListManagerRef->tokens[tokenListManagerRef->index - 1].type == LBRACK))) {
-                tokenList[index].token = tokenListManagerRef->tokens[tokenListManagerRef->index];
-                tokenList[index].unary = 1;
-                tokenList[index].precedence = getOperatorPrecedence(tokenListManagerRef->tokens[tokenListManagerRef->index].text) + getOperatorPrecedence(tokenListManagerRef->tokens[tokenListManagerRef->index].text) *
-            } else {
+    // Alternate between expressions and commas until a right bracket is found
+    while (1) {
+        // Parse expression
+        addChild(array, getExpressionAST(0));
 
-                tokenList[index].
-            }
-            tokenList[index].precedence += 10 * parenthesisCount;
-        } else {
-            tokenList[index].literal = 1;
-            tokenList[index].value = tokenListManagerRef->tokens[tokenListManagerRef->index].value;
-            index++;
+        if (tokenListManagerRef->tokens[tokenListManagerRef->index].type == COMMA) {
+            tokenListManagerRef->index++;
+            continue;
         }
-*/
 
-node getExpressionAST() {
-    node rootOperation;
-
-    // Get expression length
-    int expressionLength = getExpressionLength();
-
-
-    // Verify parenthized expression
-    if ((*tokenListManagerRef).tokens[(*tokenListManagerRef).index].type == LBRACK) {
-        (*tokenListManagerRef).index++;
-        rootOperation = getExpressionAST();
-        if ((*tokenListManagerRef).tokens[(*tokenListManagerRef).index].type == RBRACK) {
-            (*tokenListManagerRef).index++;
-        } else {
-            printf("Error: expected ')' at line %d\n", (*tokenListManagerRef).tokens[(*tokenListManagerRef).index].line);
+        if (tokenListManagerRef->tokens[tokenListManagerRef->index].type == RSQBRACK) {
+            tokenListManagerRef->index++;
+            return array;
+        }
+        else {
+            printf("Error: Expected ']' at line %d\n", tokenListManagerRef->tokens[tokenListManagerRef->index].line);
             exit(1);
         }
     }
-
-    // Verify unary operation
-    else if (isAnUnaryOperator((*tokenListManagerRef).tokens[(*tokenListManagerRef).index])) {
-        // TODO: Verify unary operation
-    }
-
-    return rootOperation;
 }
 
-/*def calcLessPriotity(expr):
-    PRIORITY_LEVELS = {'+': 1, '-': 1, '*': 2, '/': 2, '^': 3}
-    OPERATIONS = {'+': soma, '-': sub, '*': mult, '/': div, '^': pot}
-    if expr.count('.') <= 1 and expr.replace('.', '').isdigit():
-        return expr
-
-    minPriorityIndex = 0
-    minPriority = len(expr) * 3
-
-    parenteses = 0
-
-    calcPriority = lambda c: PRIORITY_LEVELS[c] + parenteses * 3 if PRIORITY_LEVELS.get(c) else minPriority
-
-    for i in range(len(expr)):
-        char = expr[i]
-        priority = calcPriority(char)
-        if priority < minPriority:
-            minPriorityIndex = i
-            minPriority = priority
-        if char == '(':
-            parenteses += 1
-        elif char == ')':
-            parenteses -= 1
-
-    expr1 = expr[:minPriorityIndex]
-    expr2 = expr[minPriorityIndex + 1:]
-
-    if expr1[0] == '(' and expr1[-1] == ')':
-        expr1 = expr1[1:-1]
-    if expr2[0] == '(' and expr2[-1] == ')':
-        expr2 = expr2[1:-1]
-
-    return OPERATIONS[expr[minPriorityIndex]](expr1, expr2)
-
-def soma(a, b):
-    return float(calcLessPriotity(a)) + float(calcLessPriotity(b))
-
-def sub(a, b):
-    return float(calcLessPriotity(a)) - float(calcLessPriotity(b))
-
-def mult(a, b):
-    return float(calcLessPriotity(a)) * float(calcLessPriotity(b))
-
-def div(a, b):
-    return float(calcLessPriotity(a)) / float(calcLessPriotity(b))
-
-def pot(a, b):
-    return float(calcLessPriotity(a)) ** float(calcLessPriotity(b))
+node getParenthesizedExpression() {
+    // Verify if the expression is parenthesized
+    if (tokenListManagerRef->tokens[tokenListManagerRef->index].type == LBRACK) {
+        printf("Start parenthesized expression: %s\n", tokenListManagerRef->tokens[tokenListManagerRef->index].text);
+        tokenListManagerRef->index++;
+        node expression = getExpressionAST(0);
+        if (tokenListManagerRef->tokens[tokenListManagerRef->index].type == RBRACK) {
+            printf("End parenthesized expression: %s\n", tokenListManagerRef->tokens[tokenListManagerRef->index].text);
+            tokenListManagerRef->index++;
+            return expression;
+        } else {
+            printf("Error: Expected ')' at line %d\n", tokenListManagerRef->tokens[tokenListManagerRef->index].line);
+            exit(1);
+        }
+    } else {
+        printf("Error: Expected '(' at line %d\n", tokenListManagerRef->tokens[tokenListManagerRef->index].line);
+        exit(1);
+    }
+}
 
 
-def main():
-    while True:
-        expression = input('Insert expression: ').replace(' ', '')
-        print(calcLessPriotity(expression), end='\n\n')
+node getOperand() {
+    // Verify if the operand is a literal or a variable
+    if (tokenListManagerRef->tokens[tokenListManagerRef->index].type >> 4 == 0x03
+        || tokenListManagerRef->tokens[tokenListManagerRef->index].type == VAR) {
+        node operand;
+        operand.data = tokenListManagerRef->tokens[tokenListManagerRef->index];
+        printf("new operand: %s\n", tokenListManagerRef->tokens[tokenListManagerRef->index].text);
+        tokenListManagerRef->index++;
+        return operand;
+    }
 
-if __name__ == '__main__':
-    main()
-*/
+    // Verify if the operand is a Literal Array
+    else if (tokenListManagerRef->tokens[tokenListManagerRef->index].type == LSQBRACK) {
+        return parseLiteralArray();
+    }
+
+    // Verify if the operand is a parenthesized expression
+    else if (tokenListManagerRef->tokens[tokenListManagerRef->index].type == LBRACK) {
+        return getParenthesizedExpression();
+    }
+
+    // Verify if is a unary operator
+    else if (tokenListManagerRef->tokens[tokenListManagerRef->index].type >> 4 == 0x07) {
+        node rootOperation;
+        rootOperation.length = 0;
+        rootOperation.children = (node *) malloc(sizeof(node));
+
+        // Get the operator
+        rootOperation.data = tokenListManagerRef->tokens[tokenListManagerRef->index];
+        printf("new operator: %s\n", tokenListManagerRef->tokens[tokenListManagerRef->index].text);
+        tokenListManagerRef->index++;
+
+        // Get the operand
+        addChild(rootOperation, getOperand());
+
+        return rootOperation;
+    }
+
+    else {
+        printf("Error: Expected operand at line %d\n", tokenListManagerRef->tokens[tokenListManagerRef->index].line);
+        exit(1);
+    }
+}
+
+node getExpressionAST(int minPrecedence) {
+    node childNode = getOperand();
+
+    while(1) {
+        // If the next token is not an operator, return the child node
+        if (!isOperator(tokenListManagerRef->tokens[tokenListManagerRef->index])
+            || getOperatorPrecedence(tokenListManagerRef->tokens[tokenListManagerRef->index]) <= minPrecedence
+            /* if  < operation precedence is right-to-left direction
+               if <= operation precedence is left-to-right direction*/
+            ) {
+            printf("%s is not a token or has <= %d precedence level\n", tokenListManagerRef->tokens[tokenListManagerRef->index].text, minPrecedence);
+            return childNode;
+        }
+
+        node rootOperation;
+        rootOperation.length = 0;
+        rootOperation.children = (node *) malloc(sizeof(node));
+        addChild(rootOperation, childNode);
+
+        // Get the operator
+        rootOperation.data = tokenListManagerRef->tokens[tokenListManagerRef->index];
+        printf("new operator: %s\n", tokenListManagerRef->tokens[tokenListManagerRef->index].text);
+        tokenListManagerRef->index++;
+
+        // Get the second operand
+        addChild(rootOperation, getExpressionAST(getOperatorPrecedence(rootOperation.data)));
+
+        childNode = rootOperation;
+    }
+
+}

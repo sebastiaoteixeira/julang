@@ -30,6 +30,6 @@ int main(int argc, char **argv)
 
     node ast = runParser(tokenList);
 
-    printf("Terminated");
+    printf("Terminated\n");
     return 0;
 }
