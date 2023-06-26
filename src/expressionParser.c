@@ -15,7 +15,7 @@ void initExpressionParser(TLM* _tokenListManagerRef) {
             if (PRIORITY_LEVELS[i][j] == 0) continue;
             printf("Setting operator %x\n", PRIORITY_LEVELS[i][j]);
             operators[n].op = PRIORITY_LEVELS[i][j];
-            operators[n].precedence = i;
+            operators[n].precedence = i + 1;
             n++;
         }
     }
@@ -24,14 +24,16 @@ void initExpressionParser(TLM* _tokenListManagerRef) {
 
 int isOperator(Token op) {
     for (int i = 0; i < OPERATORS_COUNT; i++) {
-        if (operators[i].op == op.type) return 1;
+        if (operators[i].op == op.type)
+            return 1;
     }
     return 0;
 }
 
 int getOperatorPrecedence(Token op) {
     for (int i = 0; i < OPERATORS_COUNT; i++) {
-        if (operators[i].op == op.type) return operators[i].precedence;
+        if (operators[i].op == op.type)
+            return operators[i].precedence;
     }
     return -1;
 }
@@ -60,7 +62,7 @@ node parseLiteralArray() {
             tokenListManagerRef->index++;
             continue;
         }
-        
+
         if (tokenListManagerRef->tokens[tokenListManagerRef->index].type == RSQBRACK) {
             tokenListManagerRef->index++;
             return array;
@@ -75,9 +77,11 @@ node parseLiteralArray() {
 node getParenthisedExpression() {
     // Verify if the expression is parenthised
     if (tokenListManagerRef->tokens[tokenListManagerRef->index].type == LBRACK) {
+        printf("Start parenthised expression: %s\n", tokenListManagerRef->tokens[tokenListManagerRef->index].text);
         tokenListManagerRef->index++;
         node expression = getExpressionAST(0);
         if (tokenListManagerRef->tokens[tokenListManagerRef->index].type == RBRACK) {
+            printf("End parenthised expression: %s\n", tokenListManagerRef->tokens[tokenListManagerRef->index].text);
             tokenListManagerRef->index++;
             return expression;
         } else {
@@ -93,10 +97,11 @@ node getParenthisedExpression() {
 
 node getOperand() {
     // Verify if the operand is a literal or a variable
-    if (tokenListManagerRef->tokens[tokenListManagerRef->index].type & 0xf0 == 0x30
+    if (tokenListManagerRef->tokens[tokenListManagerRef->index].type >> 4 == 0x03
         || tokenListManagerRef->tokens[tokenListManagerRef->index].type == VAR) {
         node operand;
         operand.data = tokenListManagerRef->tokens[tokenListManagerRef->index];
+        printf("new operand: %s\n", tokenListManagerRef->tokens[tokenListManagerRef->index].text);
         tokenListManagerRef->index++;
         return operand;
     }
@@ -123,18 +128,22 @@ node getExpressionAST(int minPrecedence) {
     while(1) {
         // If the next token is not an operator, return the child node
         if (!isOperator(tokenListManagerRef->tokens[tokenListManagerRef->index])
-            || getOperatorPrecedence(tokenListManagerRef->tokens[tokenListManagerRef->index]) <= minPrecedence 
+            || getOperatorPrecedence(tokenListManagerRef->tokens[tokenListManagerRef->index]) <= minPrecedence
             /* if  < operation precedence is right-to-left direction
                if <= operation precedence is left-to-right direction*/
             ) {
+            printf("%s is not a token or has <= %d precedence level\n", tokenListManagerRef->tokens[tokenListManagerRef->index].text, minPrecedence);
             return childNode;
         }
 
         node rootOperation;
+        rootOperation.length = 0;
+        rootOperation.children = (node *) malloc(sizeof(node));
         addChild(rootOperation, childNode);
 
         // Get the operator
         rootOperation.data = tokenListManagerRef->tokens[tokenListManagerRef->index];
+        printf("new operator: %s\n", tokenListManagerRef->tokens[tokenListManagerRef->index].text);
         tokenListManagerRef->index++;
 
         // Get the second operand
