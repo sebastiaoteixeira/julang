@@ -42,6 +42,7 @@ node parseLiteralArray() {
     // Create a new node
     node array;
     array.data.type = ARRAY;
+    array.length = 0;
     array.children = (node *) malloc(sizeof(node));
 
 
@@ -74,14 +75,14 @@ node parseLiteralArray() {
     }
 }
 
-node getParenthisedExpression() {
-    // Verify if the expression is parenthised
+node getParenthesizedExpression() {
+    // Verify if the expression is parenthesized
     if (tokenListManagerRef->tokens[tokenListManagerRef->index].type == LBRACK) {
-        printf("Start parenthised expression: %s\n", tokenListManagerRef->tokens[tokenListManagerRef->index].text);
+        printf("Start parenthesized expression: %s\n", tokenListManagerRef->tokens[tokenListManagerRef->index].text);
         tokenListManagerRef->index++;
         node expression = getExpressionAST(0);
         if (tokenListManagerRef->tokens[tokenListManagerRef->index].type == RBRACK) {
-            printf("End parenthised expression: %s\n", tokenListManagerRef->tokens[tokenListManagerRef->index].text);
+            printf("End parenthesized expression: %s\n", tokenListManagerRef->tokens[tokenListManagerRef->index].text);
             tokenListManagerRef->index++;
             return expression;
         } else {
@@ -111,9 +112,26 @@ node getOperand() {
         return parseLiteralArray();
     }
 
-    // Verify if the operand is a parenthised expression
+    // Verify if the operand is a parenthesized expression
     else if (tokenListManagerRef->tokens[tokenListManagerRef->index].type == LBRACK) {
-        return getParenthisedExpression();
+        return getParenthesizedExpression();
+    }
+
+    // Verify if is a unary operator
+    else if (tokenListManagerRef->tokens[tokenListManagerRef->index].type >> 4 == 0x07) {
+        node rootOperation;
+        rootOperation.length = 0;
+        rootOperation.children = (node *) malloc(sizeof(node));
+
+        // Get the operator
+        rootOperation.data = tokenListManagerRef->tokens[tokenListManagerRef->index];
+        printf("new operator: %s\n", tokenListManagerRef->tokens[tokenListManagerRef->index].text);
+        tokenListManagerRef->index++;
+
+        // Get the operand
+        addChild(rootOperation, getOperand());
+
+        return rootOperation;
     }
 
     else {
