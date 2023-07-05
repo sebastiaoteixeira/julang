@@ -52,10 +52,11 @@ node parseDeclaration() {
         tokenListManager.index++;
         if (tokenListManager.tokens[tokenListManager.index].type == VAR) {
             tokenListManager.index++;
-            if (tokenListManager.tokens[tokenListManager.index].type == ASSIGN) {
+            if (tokenListManager.tokens[tokenListManager.index].type == ASSIGN)
                 tokenListManager.index--;
-                addChild(declaration, parseExpression());
-            }
+        } else {
+            printf("Error: Expected identifier at line %d\n", tokenListManager.tokens[tokenListManager.index].line);
+            exit(1);
         }
     }
 
@@ -178,73 +179,83 @@ node parseContinueStatement() {
     return continueStatement;
 }
 
+node parseReturnStatement() {
+    node returnStatement;
+    returnStatement.data.type = RETURN;
+    returnStatement.length = 0;
+    returnStatement.children = (node*) malloc(sizeof(node));
+
+    // Verify return statement
+    if (tokenListManager.tokens[tokenListManager.index].type == RETURN) {
+        tokenListManager.index++;
+        addChild(returnStatement, parseExpression());
+    }
+
+    return returnStatement;
+}
+
 node parseStatement()
 {
     node statement;
-    statement.data.type = STATEMENT;
-    statement.length = 0;
-    statement.children = (node*) malloc(sizeof(node));
-    printf("Statement at line %d: %s\n", tokenListManager.tokens[tokenListManager.index].line, tokenListManager.tokens[tokenListManager.index].text);
 
     // Verify block
     if (tokenListManager.tokens[tokenListManager.index].type == LBRACE) {
-        printf("Block\n");
-        addChild(statement, parseBlock());
+        statement = parseBlock();
         return statement;
     }
 
     // Verify declaration
     else if (isAType(tokenListManager.tokens[tokenListManager.index])) {
         printf("Declaration\n");
-        addChild(statement, parseDeclaration());
+        statement = parseDeclaration();
     }
 
     // Verify while loop
     else if (tokenListManager.tokens[tokenListManager.index].type == WHILE) {
         printf("While\n");
-        addChild(statement, parseWhileLoop());
+        statement = parseWhileLoop();
     }
 
     // Verify do while loop
     else if (tokenListManager.tokens[tokenListManager.index].type == DO) {
         printf("Do while\n");
-        addChild(statement, parseDoWhileLoop());
+        statement = parseDoWhileLoop();
     }
 
     // Verify for loop
     else if (tokenListManager.tokens[tokenListManager.index].type == FOR) {
         printf("For\n");
-        addChild(statement, parseForLoop());
+        statement = parseForLoop();
     }
 
     // Verify if statement
     else if (tokenListManager.tokens[tokenListManager.index].type == IF) {
         printf("If\n");
-        addChild(statement, parseIfStatement());
+        statement = parseIfStatement();
     }
 
-    /* TODO: Verify return statement
-    if (tokenListManager.tokens[tokenListManager.index].type == RETURN) {
-        addChild(statement, parseReturnStatement());
+    // Verify return statement
+    else if (tokenListManager.tokens[tokenListManager.index].type == RETURN) {
+        printf("Return\n");
+        statement = parseReturnStatement();
     }
-    */
 
     // Verify break statement
     else if (tokenListManager.tokens[tokenListManager.index].type == BREAK) {
         printf("Break\n");
-        addChild(statement, parseBreakStatement());
+        statement = parseBreakStatement();
     }
 
     // Verify continue statement
     else if (tokenListManager.tokens[tokenListManager.index].type == CONTINUE) {
         printf("Continue\n");
-        addChild(statement, parseContinueStatement());
+        statement = parseContinueStatement();
     }
 
     // Verify expression
     else if (tokenListManager.tokens[tokenListManager.index].type == VAR || isAnOperator(tokenListManager.tokens[tokenListManager.index]) || isALiteral(tokenListManager.tokens[tokenListManager.index])) {
         printf("Expression\n");
-        addChild(statement, parseExpression());
+        statement = parseExpression();
     }
 
     // Verify if is the End Of File

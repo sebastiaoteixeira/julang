@@ -1,7 +1,7 @@
 #ifndef TOKEN_H_INCLUDED
 #define TOKEN_H_INCLUDED
 
-// Delimitters
+// Delimiters
 #define COMMA 0x10
 #define SEMICOLON 0x11
 #define LBRACK 0x12
@@ -17,6 +17,14 @@
 #define FLOAT 0x23
 #define DOUBLE 0x24
 #define BOOL 0x25
+// Abstract Types
+#define CHARPTR 0x26
+#define INTPTR 0x27
+#define LONGPTR 0x28
+#define FLOATPTR 0x29
+#define DOUBLEPTR 0x2A
+#define BOOLPTR 0x2B
+
 // Literals
 #define INUM 0x30
 #define FNUM 0x31
@@ -66,7 +74,6 @@
 #define RETURN 0xA1
 
 // Abstract Tokens
-#define STATEMENT 0xB0
 #define EXPRESSION 0xB1
 #define DECLARATION 0xB2
 #define FUNCTION 0xB3
@@ -84,7 +91,7 @@
 
 
 typedef struct {
-    char type;
+    short type;
     char *text;
     unsigned int line;
 } Token;
