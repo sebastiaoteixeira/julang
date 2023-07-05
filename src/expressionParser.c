@@ -141,6 +141,7 @@ node getOperand() {
 }
 
 node getExpressionAST(int minPrecedence) {
+    if (tokenListManagerRef->tokens[tokenListManagerRef->index].type == SEMICOLON) return;
     node childNode = getOperand();
 
     while(1) {
