@@ -112,6 +112,24 @@ node getOperand() {
         return parseLiteralArray();
     }
 
+    else if (tokenListManagerRef->tokens[tokenListManagerRef->index].type == TXT) {
+        node array;
+        array.data.type = ARRAY;
+        array.length = 0;
+        array.children = (node *) malloc(sizeof(node));
+
+        for (int i = 0; i < strlen(tokenListManagerRef->tokens[tokenListManagerRef->index].text); i++) {
+            node character;
+            character.data.type = CHAR;
+            character.data.text = tokenListManagerRef->tokens[tokenListManagerRef->index].text[i];
+            addChild(array, character);
+        }
+        
+        tokenListManagerRef->index++;
+        
+        return array;
+    }
+
     // Verify if the operand is a parenthesized expression
     else if (tokenListManagerRef->tokens[tokenListManagerRef->index].type == LBRACK) {
         return getParenthesizedExpression();
