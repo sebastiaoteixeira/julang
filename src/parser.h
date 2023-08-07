@@ -19,6 +19,7 @@ node* addChild(node* parent);
 
 void iterateOverAST(node ast, void (*callback)(node), int depth);
 void parseExpression(node* parent);
+void iterateOverAST(node ast, void (*callback)(node), int depth);
 
 node runParser(Token *tokens);
 
