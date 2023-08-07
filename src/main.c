@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include "lexer.h"
 #include "parser.h"
+#include "codegen.h"
 
 static const verbose = 4;
 
@@ -29,6 +30,9 @@ int main(int argc, char **argv)
         printTokenList(tokenList);
 
     node ast = runParser(tokenList);
+
+    printf("\n\nCalling generator.... \n");
+    generateCode("test", ast);
 
     printf("Terminated\n");
     return 0;

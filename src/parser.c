@@ -373,3 +373,13 @@ node runParser(Token *tokenList)
 
     return ASTRoot;
 }
+/*
+void iterateOverAST(node ast, void (*callback)(node, int), int depth)
+{
+    callback(ast, depth);
+    for (int i = 0; i < ast.length; i++) {
+        iterateOverAST(ast.children[i], callback, depth + 1);
+    }
+    return;
+}
+*/

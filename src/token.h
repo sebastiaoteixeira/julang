@@ -10,7 +10,7 @@
 #define RSQBRACK 0x15
 #define LBRACE 0x16
 #define RBRACE 0x17
-// Types
+// Primitive Types
 #define CHAR 0x20
 #define INT 0x21
 #define LONG 0x22

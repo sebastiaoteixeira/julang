@@ -17,6 +17,7 @@ typedef struct Node {
 
 void addChild(node parent, node child);
 
+void iterateOverAST(node ast, void (*callback)(node), int depth);
 
 node runParser(Token *tokens);
 
