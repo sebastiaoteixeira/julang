@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "lexer.h"
+#include "logger.h"
 #include "parser.h"
 #include "codegen.h"
 
@@ -30,6 +31,8 @@ int main(int argc, char **argv)
         printTokenList(tokenList);
 
     node ast = runParser(tokenList);
+    printf("Print Abstract Syntax Tree:\n");
+    printAST(&ast);
 
     printf("\n\nCalling generator.... \n");
     generateCode("test", ast);
