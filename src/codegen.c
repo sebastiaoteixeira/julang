@@ -130,7 +130,8 @@ LLVMModuleRef createModule(char* name) {
 LLVMValueRef createNewFunction(LLVMModuleRef mod, char *name, LLVMTypeRef *param_types, int param_count, LLVMTypeRef ret_type) {
     LLVMTypeRef function_type = LLVMFunctionType(ret_type, param_types, param_count, 0);
     LLVMValueRef function = LLVMAddGlobal(mod, function_type, name);
-    return function;
+    printf("Function Created - %s()", name);
+    return LLVMGetNamedGlobal(mod, name);
 }
 
 // Get global symbols (global variables, etc.)
@@ -303,6 +304,7 @@ LLVMValueRef generateExpression(LLVMModuleRef mod, node ast, LLVMBuilderRef buil
             }
         }
     }
+    return 0;
 }
 
 // Generate code for statement
@@ -320,8 +322,6 @@ void generateStatement(LLVMModuleRef mod, node ast, LLVMBuilderRef builder) {
             // TODO
         } else if (ast.children[i].data.type == FORLOOPSTATEMENT) {
             // TODO
-        } else if (ast.children[i].data.type == DECLARATION) {
-            // TODO
         } else if (ast.children[i].data.type == RETURN) {
             // TODO
         } else if (ast.children[i].data.type == BREAK) {
@@ -329,6 +329,7 @@ void generateStatement(LLVMModuleRef mod, node ast, LLVMBuilderRef builder) {
         } else if (ast.children[i].data.type == CONTINUE) {
             // TODO
         } else if (ast.children[i].data.type == EXPRESSION) {
+            printf("Generating expression");
             generateExpression(mod, ast.children[i], builder);
         }
     }
@@ -337,11 +338,17 @@ void generateStatement(LLVMModuleRef mod, node ast, LLVMBuilderRef builder) {
 // Generate code for main function
 void generateMain(LLVMModuleRef mod, node ast, LLVMBuilderRef builder) {
     // Create a new function
-    createNewFunction(mod, "main", NULL, 0, LLVMInt32Type());
+    printf("Creating main() function\n");
+    LLVMTypeRef ret_type = LLVMFunctionType(LLVMInt32Type(), NULL, 0, 0);
+    LLVMValueRef sum = LLVMAddFunction(mod, "main", ret_type);
+    printf("main() created\n");
+    LLVMBasicBlockRef entry = LLVMAppendBasicBlock(sum, "entry");
+    LLVMPositionBuilderAtEnd(builder, entry);
+    printf("Added basic block to sum\n");
     // Iterate over the root node's children and search for instruction
     for (int i = 0; i < ast.length; i++) {
         if (ast.children[i].data.type != DECLARATION) {
-
+            generateStatement(mod, ast.children[i], builder);
         }
     }
 }
@@ -361,10 +368,9 @@ void generateCode(char *name, node ast) {
 
     parseGlobalSymbols(mod, ast);
 
+
+
     // Create main function
-    LLVMValueRef mainFunction = createNewFunction(mod, "main", NULL, 0, LLVMInt32Type());
-    LLVMBasicBlockRef entry = LLVMAppendBasicBlock(mainFunction, "entry");
-    LLVMPositionBuilderAtEnd(builder, entry);
     generateMain(mod, ast, builder);
 
     if (LLVMWriteBitcodeToFile(mod, getModuleFileName(mod)) != 0) {
