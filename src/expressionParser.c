@@ -57,7 +57,7 @@ node parseLiteralArray() {
     // Alternate between expressions and commas until a right bracket is found
     while (1) {
         // Parse expression
-        addChild(array, getExpressionAST(0));
+        parseExpression(&array);
 
         if (tokenListManagerRef->tokens[tokenListManagerRef->index].type == COMMA) {
             tokenListManagerRef->index++;
@@ -138,7 +138,7 @@ node getOperand() {
     // Verify if is a unary operator
     else if (tokenListManagerRef->tokens[tokenListManagerRef->index].type >> 4 == 0x07) {
         node rootOperation;
-        rootOperation.length = 0;
+        rootOperation.length = 1;
         rootOperation.children = (node *) malloc(sizeof(node));
 
         // Get the operator
@@ -147,7 +147,7 @@ node getOperand() {
         tokenListManagerRef->index++;
 
         // Get the operand
-        addChild(rootOperation, getOperand());
+        rootOperation.children[0] = getOperand();
 
         return rootOperation;
     }
@@ -174,9 +174,9 @@ node getExpressionAST(int minPrecedence) {
         }
 
         node rootOperation;
-        rootOperation.length = 0;
-        rootOperation.children = (node *) malloc(sizeof(node));
-        addChild(rootOperation, childNode);
+        rootOperation.length = 2;
+        rootOperation.children = (node *) malloc(2 * sizeof(node));
+        rootOperation.children[0] = childNode;
 
         // Get the operator
         rootOperation.data = tokenListManagerRef->tokens[tokenListManagerRef->index];
@@ -184,7 +184,7 @@ node getExpressionAST(int minPrecedence) {
         tokenListManagerRef->index++;
 
         // Get the second operand
-        addChild(rootOperation, getExpressionAST(getOperatorPrecedence(rootOperation.data)));
+        rootOperation.children[1] = getExpressionAST(getOperatorPrecedence(rootOperation.data));
 
         childNode = rootOperation;
     }

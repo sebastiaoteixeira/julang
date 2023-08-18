@@ -15,9 +15,10 @@ typedef struct Node {
     int length;
 } node;
 
-void addChild(node parent, node child);
+node* addChild(node* parent);
 
 void iterateOverAST(node ast, void (*callback)(node), int depth);
+void parseExpression(node* parent);
 
 node runParser(Token *tokens);
 
