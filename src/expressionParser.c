@@ -119,14 +119,13 @@ node getOperand() {
         array.children = (node *) malloc(sizeof(node));
 
         for (int i = 0; i < strlen(tokenListManagerRef->tokens[tokenListManagerRef->index].text); i++) {
-            node character;
-            character.data.type = CHAR;
-            character.data.text = tokenListManagerRef->tokens[tokenListManagerRef->index].text[i];
-            addChild(array, character);
+            node* character = addChild(&array);
+            character->data.type = CHAR;
+            *(character->data.text) = tokenListManagerRef->tokens[tokenListManagerRef->index].text[i];
         }
-        
+
         tokenListManagerRef->index++;
-        
+
         return array;
     }
 
