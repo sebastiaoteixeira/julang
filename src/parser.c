@@ -32,7 +32,7 @@ node* addChild(node* parent)
 void parseExpression(node* parent) {
     node* expression = addChild(parent);
     expression->data.type = EXPRESSION;
-    expression->length = 0;
+    expression->length = 1;
     expression->children = (node*) malloc(sizeof(node));
 
     expression->children[0] = getExpressionAST(0);
