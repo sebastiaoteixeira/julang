@@ -101,6 +101,7 @@ node getOperand() {
     if (tokenListManagerRef->tokens[tokenListManagerRef->index].type >> 4 == 0x03
         || tokenListManagerRef->tokens[tokenListManagerRef->index].type == VAR) {
         node operand;
+        operand.length = 0;
         operand.data = tokenListManagerRef->tokens[tokenListManagerRef->index];
         printf("new operand: %s\n", tokenListManagerRef->tokens[tokenListManagerRef->index].text);
         tokenListManagerRef->index++;

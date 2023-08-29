@@ -17,7 +17,7 @@ typedef struct ExpressionToken {
 
 
 static const int OPERATORS_COUNT = 19;
-static const char PRIORITY_LEVELS[11][4] = {{ASSIGN, 0, 0, 0},
+static const short PRIORITY_LEVELS[11][4] = {{ASSIGN, 0, 0, 0},
                                      {OR, 0, 0, 0},
                                      {AND, 0, 0, 0},
                                      {BOR, 0, 0, 0},
