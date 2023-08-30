@@ -1,6 +1,7 @@
 #ifndef LEXER_H_INCLUDED
 #define LEXER_H_INCLUDED
 
+#include <stdio.h>
 #include "token.h"
 
 int isLetter(char c);
