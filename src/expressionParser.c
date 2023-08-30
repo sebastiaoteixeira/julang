@@ -101,6 +101,7 @@ node getOperand() {
     if (tokenListManagerRef->tokens[tokenListManagerRef->index].type >> 4 == 0x03
         || tokenListManagerRef->tokens[tokenListManagerRef->index].type == VAR) {
         node operand;
+        operand.length = 0;
         operand.data = tokenListManagerRef->tokens[tokenListManagerRef->index];
         printf("new operand: %s\n", tokenListManagerRef->tokens[tokenListManagerRef->index].text);
         tokenListManagerRef->index++;
@@ -110,6 +111,23 @@ node getOperand() {
     // Verify if the operand is a Literal Array
     else if (tokenListManagerRef->tokens[tokenListManagerRef->index].type == LSQBRACK) {
         return parseLiteralArray();
+    }
+
+    else if (tokenListManagerRef->tokens[tokenListManagerRef->index].type == TXT) {
+        node array;
+        array.data.type = ARRAY;
+        array.length = 0;
+        array.children = (node *) malloc(sizeof(node));
+
+        for (int i = 0; i < strlen(tokenListManagerRef->tokens[tokenListManagerRef->index].text); i++) {
+            node* character = addChild(&array);
+            character->data.type = CHAR;
+            *(character->data.text) = tokenListManagerRef->tokens[tokenListManagerRef->index].text[i];
+        }
+
+        tokenListManagerRef->index++;
+
+        return array;
     }
 
     // Verify if the operand is a parenthesized expression

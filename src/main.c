@@ -1,7 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "lexer.h"
+#include "logger.h"
 #include "parser.h"
+#include "codegen.h"
 
 static const verbose = 4;
 
@@ -29,6 +31,14 @@ int main(int argc, char **argv)
         printTokenList(tokenList);
 
     node ast = runParser(tokenList);
+    printf("Print Abstract Syntax Tree:\n");
+    printAST(&ast);
+
+    printf("\n\nCalling generator.... \n");
+    generateCode("test", ast);
+
+    printf("\n\nCalling generator.... \n");
+    generateCode("test", ast);
 
     printf("Terminated\n");
     return 0;
