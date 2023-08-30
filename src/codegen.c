@@ -113,18 +113,14 @@ void deleteLevel() {
 // End Symbol Table
 
 
-char* getModuleFileName(LLVMModuleRef mod) {
-    char *name;
-    size_t len = MAXIMUM_MODULE_NAME_LENGTH;
-    name = LLVMGetModuleIdentifier(mod, &len);
-
-    // Replace . by /
+char* getModuleName(char *path) {
+    char* name = strdup(path);
+    // Replace / by .
     for (int i = 0; i < strlen(name); i++) {
-        if (name[i] == '.') {
-            name[i] = '/';
+        if (name[i] == '/') {
+            name[i] = '.';
         }
     }
-    strcat(name, ".bc");
     return name;
 }
 
@@ -472,7 +468,7 @@ void generateMain(LLVMModuleRef mod, node ast, LLVMBuilderRef builder) {
 }
 
 void generateCode(char *name, node ast) {
-    LLVMModuleRef mod = createModule(name);
+    LLVMModuleRef mod = createModule(getModuleName(name));
     LLVMBuilderRef builder = LLVMCreateBuilder();
 
     startSymbolTable();
@@ -491,7 +487,13 @@ void generateCode(char *name, node ast) {
     // Create main function
     generateMain(mod, ast, builder);
 
-    if (LLVMWriteBitcodeToFile(mod, getModuleFileName(mod)) != 0) {
+    // Generate bytecode
+    char* destinationFile = (char *) malloc(strlen(name));
+    strcpy(destinationFile, name);
+    char* BCExtension = ".bc";
+    for (int i = 0; i < strlen(BCExtension); i++)
+        destinationFile[strlen(destinationFile) - 3 + i] = BCExtension[i];
+    if (LLVMWriteBitcodeToFile(mod, destinationFile) != 0) {
         fprintf(stderr, "error writing bitcode to file, skipping\n");
     }
 }

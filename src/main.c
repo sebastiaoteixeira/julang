@@ -35,10 +35,7 @@ int main(int argc, char **argv)
     printAST(&ast);
 
     printf("\n\nCalling generator.... \n");
-    generateCode("test", ast);
-
-    printf("\n\nCalling generator.... \n");
-    generateCode("test", ast);
+    generateCode(argv[1], ast);
 
     printf("Terminated\n");
     return 0;
