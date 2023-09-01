@@ -4,6 +4,8 @@
 #include "logger.h"
 #include "parser.h"
 #include "codegen.h"
+#include "symbolsNaming.h"
+#include "token.h"
 
 static const verbose = 4;
 
@@ -26,6 +28,8 @@ int main(int argc, char **argv)
     FILE *inputCode = readFile(argv[1]);
 
     Token *tokenList = runLexer(inputCode);
+    char* moduleHash = generateModuleHash(tokenList);
+    printf("%s\n", moduleHash);
 
     if (verbose >= 4)
         printTokenList(tokenList);
