@@ -15,8 +15,8 @@ LLVMValueRef printf_f;
 
 // Internal functions
 int numberOfDigits(int number) {
-    int digits = 0;
-    while (number != 0) {
+    int digits = 1;
+    while (number >= 10) {
         number /= 10;
         digits++;
     }
@@ -25,9 +25,9 @@ int numberOfDigits(int number) {
 
 LLVMBasicBlockRef newNamedBlock(LLVMBuilderRef builder, char *name, int id) {
     int nameLength = strlen(name);
-    char *newName = malloc(nameLength + 1 + numberOfDigits(id));
+    char *newName = (char *) malloc(sizeof(char) * (nameLength + 1 + numberOfDigits(id)));
     sprintf(newName, "%s%d", name, id);
-    return LLVMAppendBasicBlock(LLVMGetBasicBlockParent(LLVMGetInsertBlock(builder)), name);
+    return LLVMAppendBasicBlock(LLVMGetBasicBlockParent(LLVMGetInsertBlock(builder)), newName);
 }
 
 // Symbol Table
@@ -35,18 +35,22 @@ LLVMBasicBlockRef newNamedBlock(LLVMBuilderRef builder, char *name, int id) {
 struct LST {
     char *name;
     LLVMValueRef value;
+    LLVMTypeRef type;
     int level;
     struct LST *prev;
     struct LST *next;
 } symbolTable;
 
+int currentLevel;
+
 void startSymbolTable() {
     symbolTable.name = NULL;
     symbolTable.value = NULL;
+    symbolTable.type = NULL;
     symbolTable.level = 0;
     symbolTable.prev = NULL;
     symbolTable.next = NULL;
-    static int currentLevel = 0;
+    currentLevel = 0;
 }
 
 struct LST* getLastSymbol() {
@@ -57,12 +61,11 @@ struct LST* getLastSymbol() {
     return currentSymbol;
 }
 
-void newSymbol(char *name, LLVMValueRef value) {
-    static int currentLevel;
-
+void newSymbol(char *name, LLVMValueRef value, LLVMTypeRef type) {
     struct LST* currentSymbol = getLastSymbol();
     currentSymbol->name = name;
     currentSymbol->value = value;
+    currentSymbol->type = type;
     currentSymbol->level = currentLevel;
     currentSymbol->next = (struct LST *) malloc(sizeof(struct LST));
     currentSymbol->next->prev = currentSymbol;
@@ -89,25 +92,21 @@ void updateSymbol(char *name, LLVMValueRef newValue) {
 }
 
 void newLevel() {
-    static int currentLevel;
-
     currentLevel++;
 }
 
 void deleteLevel() {
-    static int currentLevel;
-
     if (currentLevel == 0) {
         printf("Error: Cannot delete level 0\n");
         exit(1);
     }
 
-    struct LST currentSymbol = *getLastSymbol();
+    struct LST* currentSymbol = getLastSymbol();
     currentLevel--;
 
-    while (currentSymbol.level > currentLevel) {
-        currentSymbol = *currentSymbol.prev;
-        free(currentSymbol.next);
+    while (currentSymbol->level > currentLevel) {
+        currentSymbol = currentSymbol->prev;
+        free(currentSymbol->next);
     }
 }
 // End Symbol Table
@@ -126,19 +125,19 @@ char* getModuleName(char *path) {
 
 // Type checking functions
 int isIntegerNumberType(LLVMTypeRef type) {
-    return type == LLVMInt8Type()
-        || type == LLVMInt16Type()
-        || type == LLVMInt32Type()
-        || type == LLVMInt64Type()
-        || type == LLVMInt128Type();
+    LLVMTypeKind typeKind = LLVMGetTypeKind(type);
+
+    return typeKind == LLVMIntegerTypeKind;
 }
 
 int isFloatingPointNumberType(LLVMTypeRef type) {
-    return type == LLVMHalfType()
-        || type == LLVMFloatType()
-        || type == LLVMDoubleType()
-        || type == LLVMFP128Type()
-        || type == LLVMX86FP80Type();
+    LLVMTypeKind typeKind = LLVMGetTypeKind(type);
+
+    return typeKind == LLVMHalfTypeKind
+        || typeKind == LLVMFloatTypeKind
+        || typeKind == LLVMDoubleTypeKind
+        || typeKind == LLVMX86_FP80TypeKind
+        || typeKind == LLVMFP128TypeKind;
 }
 
 int isNumberType(LLVMTypeRef type) {
@@ -191,7 +190,7 @@ void generateSymbols(LLVMModuleRef mod, node ast, int global) {
                     fprintf(stderr, "error: invalid token\n");
                     exit(1);
             }
-            newSymbol(ast.children[i].children[1].data.text, LLVMAddGlobal(mod, type, ast.children[i].children[1].data.text));
+            newSymbol(ast.children[i].children[1].data.text, LLVMAddGlobal(mod, type, ast.children[i].children[1].data.text), type);
         }
 
     }
@@ -265,7 +264,8 @@ LLVMValueRef generateExpression(LLVMModuleRef mod, node ast, LLVMBuilderRef buil
         return LLVMConstArray(elementType, values, ast.length);
     } else if (ast.data.type == 0x60) {
         // For variable
-        return getValueFromSymbolTable(ast.data.text);
+        struct LST* symbol = getSymbol(ast.data.text);
+        return LLVMBuildLoad2(builder, symbol->type, symbol->value, "loadtmp");
     }
 
     // For binary operation
@@ -317,10 +317,14 @@ LLVMValueRef generateExpression(LLVMModuleRef mod, node ast, LLVMBuilderRef buil
         LHS = convertToBoolean(mod, LHS, builder);
         RHS = convertToBoolean(mod, RHS, builder);
         if (ast.data.type == AND) {
+            return LLVMBuildAnd(builder, LHS, RHS, "andtmp");
         } else if (ast.data.type == OR) {
-            // TODO
+            return LLVMBuildOr(builder, LHS, RHS, "ortmp");
         } else if (ast.data.type == XOR) {
-            // TODO
+            return LLVMBuildXor(builder, LHS, RHS, "xortmp");
+        } else {
+            fprintf(stderr, "error: invalid token\n");
+            exit(1);
         }
     }
 
@@ -416,12 +420,11 @@ void generateStatement(LLVMModuleRef mod, node ast, LLVMBuilderRef builder) {
     } else if (ast.data.type == CONTINUE) {
         // TODO
     } else if (ast.data.type == BLOCK) {
-        static int currentLevel;
-        currentLevel++;
+        newLevel();
         for (int i = 0; i < ast.length; i++) {
             generateStatement(mod, ast.children[i], builder);
         }
-        currentLevel--;
+        deleteLevel();
     } else if (ast.data.type == EXPRESSION) {
         printf("Generating expression\n");
         generateExpression(mod, ast.children[0], builder);
