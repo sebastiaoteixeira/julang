@@ -15,7 +15,7 @@ FILE *readFile(char *fileName)
     fp = fopen(fileName, "r");
     if (fp == NULL) {
         printf("Error opening file!\n");
-        return fp;
+        exit(1);
     }
 
     return fp;
