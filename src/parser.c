@@ -40,6 +40,7 @@ void parseExpression(node* parent) {
     return;
 }
 
+
 void parseDeclaration(node* parent) {
     node* declaration = addChild(parent);
     declaration->data.type = DECLARATION;
@@ -65,6 +66,56 @@ void parseDeclaration(node* parent) {
                 tokenListManager.index--;
         } else {
             printf("Error: Expected identifier at line %d\n", tokenListManager.tokens[tokenListManager.index].line);
+            exit(1);
+        }
+    }
+
+    return;
+}
+
+void parseFunction(node* parent) {
+    node* function = addChild(parent);
+    function->data.type = FUNCTION;
+    function->length = 0;
+    function->children = (node*) malloc(sizeof(node));
+
+    // Verify function
+    if (isAType(tokenListManager.tokens[tokenListManager.index])) {
+        node* symbol = addChild(function);
+        symbol->data = tokenListManager.tokens[tokenListManager.index];
+        symbol->length = 0;
+        symbol->children = (node*) malloc(sizeof(node));
+        tokenListManager.index++;
+        if (tokenListManager.tokens[tokenListManager.index].type == VAR) {
+            node* symbol = addChild(function);
+            symbol->data = tokenListManager.tokens[tokenListManager.index];
+            symbol->length = 0;
+            symbol->children = (node*) malloc(sizeof(node));
+            tokenListManager.index++;
+            if (tokenListManager.tokens[tokenListManager.index].type == LBRACK) {
+                while (tokenListManager.tokens[tokenListManager.index].type != RBRACK) {
+                    tokenListManager.index++;
+                    parseDeclaration(function);
+                    if (tokenListManager.tokens[tokenListManager.index].type == VAR) {
+                        parseExpression(function);
+                    }
+                    if (tokenListManager.tokens[tokenListManager.index].type == COMMA) {
+                        continue;
+                    } else if (tokenListManager.tokens[tokenListManager.index].type == RBRACK) {
+                        break;
+                    } else {
+                        printf("Error: expected ',' or ')' at line %d\n", tokenListManager.tokens[tokenListManager.index].line);
+                        exit(1);
+                    }
+                }
+                tokenListManager.index++;
+                parseStatement(function);
+            } else {
+                printf("Error: expected '(' at line %d\n", tokenListManager.tokens[tokenListManager.index].line);
+                exit(1);
+            }
+        } else {
+            printf("Error: expected identifier at line %d\n", tokenListManager.tokens[tokenListManager.index].line);
             exit(1);
         }
     }
@@ -234,8 +285,13 @@ void parseStatement(node* parent)
 
     // Verify declaration
     else if (isAType(tokenListManager.tokens[tokenListManager.index])) {
-        printf("Declaration\n");
-        parseDeclaration(parent);
+        if (tokenListManager.tokens[tokenListManager.index + 2].type == LBRACK) {
+            printf("Function\n");
+            parseFunction(parent);
+        } else {
+            printf("Declaration\n");
+            parseDeclaration(parent);
+        }
     }
 
     // Verify while loop

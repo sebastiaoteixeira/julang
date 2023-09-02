@@ -18,8 +18,8 @@ void printToken(Token token) {
         str = "FUNCTION";
         break;
 
-    case ARGUMENT:
-        str = "ARGUMENT";
+    case RETURN:
+        str = "RETURN";
         break;
 
     case PARAMETER:
