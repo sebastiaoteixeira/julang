@@ -280,10 +280,19 @@ LLVMValueRef generateExpression(LLVMModuleRef mod, node ast, LLVMBuilderRef buil
             values[j] = generateExpression(mod, ast.children[j], builder);
         }
         return LLVMConstArray(elementType, values, ast.length);
-    } else if (ast.data.type == 0x60) {
+    } else if (ast.data.type == VAR) {
         // For variable
         struct LST* symbol = getSymbol(ast.data.text);
         return LLVMBuildLoad2(builder, symbol->type, symbol->value, "loadtmp");
+    } else if (ast.data.type == CALL) {
+        // For a function call
+        LLVMValueRef function = getValueFromSymbolTable(ast.children[0].data.text);
+        unsigned int params_count = LLVMCountParams(function);
+        LLVMValueRef* arguments = (LLVMValueRef*) malloc(sizeof(LLVMValueRef) * params_count);
+        for(unsigned int i = 0; i < params_count; i++) {
+            arguments[i] = generateExpression(mod, ast.children[i + 1], builder);
+        }
+        return LLVMBuildCall2(builder, LLVMGlobalGetValueType(function), function, arguments, params_count, "calltmp");
     }
 
     // For binary operation
@@ -330,7 +339,7 @@ LLVMValueRef generateExpression(LLVMModuleRef mod, node ast, LLVMBuilderRef buil
         return LLVMBuildShl(builder, LHS, RHS, "shltmp");
     } else if (ast.data.type == BSR) {
         return LLVMBuildLShr(builder, LHS, RHS, "shrtemp");
-    } else {
+    } else if (ast.data.type >= AND && ast.data.type <= XOR) {
         // Logical operations
         LHS = convertToBoolean(mod, LHS, builder);
         RHS = convertToBoolean(mod, RHS, builder);
@@ -340,10 +349,10 @@ LLVMValueRef generateExpression(LLVMModuleRef mod, node ast, LLVMBuilderRef buil
             return LLVMBuildOr(builder, LHS, RHS, "ortmp");
         } else if (ast.data.type == XOR) {
             return LLVMBuildXor(builder, LHS, RHS, "xortmp");
-        } else {
-            fprintf(stderr, "error: invalid token\n");
-            exit(1);
         }
+    } else {
+        fprintf(stderr, "error: invalid token\n");
+        exit(1);
     }
 
     return 0;
@@ -438,6 +447,7 @@ void generateStatement(LLVMModuleRef mod, node ast, LLVMBuilderRef builder) {
         }
         LLVMValueRef funct = createNewFunction(mod, ast.children[1].data.text, param_types, ast.length - 3, getLLVMType(ast.children[0].data));
         LLVMBasicBlockRef block = LLVMAppendBasicBlock(funct, "entry");
+        newSymbol(ast.children[1].data.text, funct, LLVMTypeOf(funct));
         newLevel();
         LLVMBuilderRef functionBuilder = LLVMCreateBuilder();
         LLVMPositionBuilderAtEnd(functionBuilder, block);
@@ -492,17 +502,6 @@ void generateMain(LLVMModuleRef mod, node ast, LLVMBuilderRef builder) {
         if (ast.children[i].data.type != DECLARATION) {
             generateStatement(mod, ast.children[i], builder);
         }
-    }
-
-    if (compDebug) {
-        // Alloca space for printf string
-        LLVMValueRef printf_str = LLVMBuildAlloca(builder, LLVMArrayType(LLVMInt8Type(), 4), "printf_str");
-
-        // put "Hello World!" in printf_str
-        LLVMValueRef printf_str_value = LLVMConstString("%d\n", 3, 0);
-        LLVMBuildStore(builder, printf_str_value, printf_str);
-        LLVMValueRef printf_params[] = {printf_str, getValueFromSymbolTable(getLastSymbol()->prev->name)};
-        LLVMBuildCall2(builder, LLVMGlobalGetValueType(printf_f), printf_f, printf_params, 2, "calltmp");
     }
 
     LLVMBuildRet(builder, LLVMConstInt(LLVMInt32Type(), 0, 0));
