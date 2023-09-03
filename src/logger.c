@@ -21,6 +21,10 @@ void printToken(Token token) {
     case RETURN:
         str = "RETURN";
         break;
+    
+    case CALL:
+        str = "CALL";
+        break;
 
     case PARAMETER:
         str = "PARAMETER";
