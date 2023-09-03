@@ -100,12 +100,37 @@ node getOperand() {
     // Verify if the operand is a literal or a variable
     if (tokenListManagerRef->tokens[tokenListManagerRef->index].type >> 4 == 0x03
         || tokenListManagerRef->tokens[tokenListManagerRef->index].type == VAR) {
-        node operand;
-        operand.length = 0;
-        operand.data = tokenListManagerRef->tokens[tokenListManagerRef->index];
-        printf("new operand: %s\n", tokenListManagerRef->tokens[tokenListManagerRef->index].text);
-        tokenListManagerRef->index++;
-        return operand;
+        if (tokenListManagerRef->tokens[tokenListManagerRef->index + 1].type == LBRACK) {
+            node fcall;
+            fcall.length = 0;
+            fcall.data.type = CALL;
+            fcall.children = (node *) malloc(sizeof(node));
+            fcall.length = 1;
+            fcall.children[0].data = tokenListManagerRef->tokens[tokenListManagerRef->index];
+            tokenListManagerRef->index++;
+            while (tokenListManagerRef->tokens[tokenListManagerRef->index].type != RBRACK) {
+                tokenListManagerRef->index++;
+                node* arg = addChild(&fcall);
+                *arg = getExpressionAST(0);
+                if (tokenListManagerRef->tokens[tokenListManagerRef->index].type == COMMA) {
+                    continue;
+                } else if (tokenListManagerRef->tokens[tokenListManagerRef->index].type == RBRACK) {
+                    break;
+                } else {
+                    printf("Error: expected ',' or ')' at line %d\n", tokenListManagerRef->tokens[tokenListManagerRef->index].line);
+                    exit(1);
+                }
+            }
+            tokenListManagerRef->index++;
+            return fcall;
+        } else {
+            node operand;
+            operand.length = 0;
+            operand.data = tokenListManagerRef->tokens[tokenListManagerRef->index];
+            printf("new operand: %s\n", tokenListManagerRef->tokens[tokenListManagerRef->index].text);
+            tokenListManagerRef->index++;
+            return operand;
+        }
     }
 
     // Verify if the operand is a Literal Array
