@@ -43,7 +43,8 @@
 #define CONTINUE 0x46
 //    Assembly and Syscalls
 #define CALL 0x50
-#define ASM 0x51
+#define ARGDEF 0x51
+#define ASM 0x52
 // Variables
 #define VAR 0x60
 // Operators
@@ -88,6 +89,8 @@
 #define PROGRAM 0xC0
 #define ROOT 0xC1
 #define ARRAY 0xD0
+#define DARRAY 0xD1
+#define OBJECT 0xD2
 
 
 typedef struct {

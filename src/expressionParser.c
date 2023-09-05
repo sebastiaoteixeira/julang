@@ -4,9 +4,13 @@
 #include "token.h"
 #include "expressionParser.h"
 #include "parser.h"
+#include "parserSymbols.h"
 
 
-void initExpressionParser(TLM* _tokenListManagerRef) {
+SymbolStack* symbolStackRef;
+
+void initExpressionParser(TLM* _tokenListManagerRef, SymbolStack* _symbolStackRef) {
+    symbolStackRef = _symbolStackRef;
     tokenListManagerRef = _tokenListManagerRef;
     operators = (Operator *) malloc(sizeof(Operator) * OPERATORS_COUNT);
     int n = 0;
@@ -97,21 +101,36 @@ node getParenthesizedExpression() {
 
 
 node getOperand() {
-    // Verify if the operand is a literal or a variable
     if (tokenListManagerRef->tokens[tokenListManagerRef->index].type >> 4 == 0x03
         || tokenListManagerRef->tokens[tokenListManagerRef->index].type == VAR) {
+        // Verify if the operand is a function call
         if (tokenListManagerRef->tokens[tokenListManagerRef->index + 1].type == LBRACK) {
             node fcall;
             fcall.length = 0;
             fcall.data.type = CALL;
             fcall.children = (node *) malloc(sizeof(node));
-            fcall.length = 1;
-            fcall.children[0].data = tokenListManagerRef->tokens[tokenListManagerRef->index];
+            fcall.length = 0;
+            node* symbol = addChild(&fcall);
+            symbol->data = tokenListManagerRef->tokens[tokenListManagerRef->index];
             tokenListManagerRef->index++;
             while (tokenListManagerRef->tokens[tokenListManagerRef->index].type != RBRACK) {
                 tokenListManagerRef->index++;
                 node* arg = addChild(&fcall);
-                *arg = getExpressionAST(0);
+                arg->data.type = ARGUMENT;
+                arg->length = 0;
+                arg->children = (node *) malloc(sizeof(node));
+                if (tokenListManagerRef->tokens[tokenListManagerRef->index + 1].type == ARGDEF) {
+                    if (tokenListManagerRef->tokens[tokenListManagerRef->index].type == VAR) {
+                        node* symbol = addChild(arg);
+                        symbol->data = tokenListManagerRef->tokens[tokenListManagerRef->index];
+                        symbol->length = 0;
+                        tokenListManagerRef->index += 2;
+                    } else {
+                        printf("Error: expected symbol at line %d\n", tokenListManagerRef->tokens[tokenListManagerRef->index].line);
+                        exit(1);
+                    }
+                }
+                parseExpression(arg);
                 if (tokenListManagerRef->tokens[tokenListManagerRef->index].type == COMMA) {
                     continue;
                 } else if (tokenListManagerRef->tokens[tokenListManagerRef->index].type == RBRACK) {
@@ -122,7 +141,14 @@ node getOperand() {
                 }
             }
             tokenListManagerRef->index++;
+            // Reorder the arguments
+            node *reordenedArgs = (node *) malloc(sizeof(node) * (fcall.length - 1));
+            verifyFunction(symbolStackRef, fcall.children[0].data.text, fcall.children + 1, reordenedArgs, fcall.length - 1);
+            for (int i = 1; i < fcall.length; i++) {
+                fcall.children[i] = reordenedArgs[fcall.length - i - 1];
+            }
             return fcall;
+        // Verify if the operand is a literal or a variable
         } else {
             node operand;
             operand.length = 0;

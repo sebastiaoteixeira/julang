@@ -29,6 +29,10 @@ void printToken(Token token) {
     case PARAMETER:
         str = "PARAMETER";
         break;
+    
+    case ARGUMENT:
+        str = "ARGUMENT";
+        break;
 
     case BLOCK:
         str = "BLOCK";

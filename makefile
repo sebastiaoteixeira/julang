@@ -1,8 +1,8 @@
 edit : main
 
-main : main.o token.o lexer.o parser.o expressionParser.o logger.o codegen.o moduleHash.o
+main : main.o token.o lexer.o parser.o expressionParser.o logger.o codegen.o moduleHash.o parserSymbols.o
 		export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/lib/llvm-15/lib
-		gcc -g obj/Debug/src/main.o obj/Debug/src/token.o obj/Debug/src/lexer.o obj/Debug/src/parser.o obj/Debug/src/expressionParser.o obj/Debug/src/logger.o obj/Debug/src/codegen.o obj/Debug/src/moduleHash.o -o bin/Debug/julang -Xlinker -lLLVM-15 -lcrypto
+		gcc -g obj/Debug/src/main.o obj/Debug/src/token.o obj/Debug/src/lexer.o obj/Debug/src/parser.o obj/Debug/src/expressionParser.o obj/Debug/src/logger.o obj/Debug/src/codegen.o obj/Debug/src/moduleHash.o obj/Debug/src/parserSymbols.o -o bin/Debug/julang -Xlinker -lLLVM-15 -lcrypto
 
 main.o :
 		gcc -g -c src/main.c -o obj/Debug/src/main.o -Iinclude
@@ -27,6 +27,9 @@ codegen.o :
 
 moduleHash.o :
 		gcc -g -c src/moduleHash.c -o obj/Debug/src/moduleHash.o -Iinclude
+
+parserSymbols.o :
+		gcc -g -c src/parserSymbols.c -o obj/Debug/src/parserSymbols.o -Iinclude
 
 clean :
 		rm edit main.o
