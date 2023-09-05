@@ -1,6 +1,7 @@
 #ifndef EXPRESSIONPARSER_H_DEFINED
 #define EXPRESSIONPARSER_H_DEFINED
 #include "parser.h"
+#include "parserSymbols.h"
 #include "token.h"
 
 typedef struct {
@@ -34,7 +35,7 @@ static Operator* operators;
 static TLM* tokenListManagerRef;
 
 
-void initExpressionParser(TLM* tokenListManagerRef);
+void initExpressionParser(TLM* tokenListManagerRef, SymbolStack* symbolStack);
 int isOperator(Token c);
 int getOperatorPrecedence(Token op);
 node getExpressionAST();

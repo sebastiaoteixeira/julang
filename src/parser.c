@@ -3,12 +3,15 @@
 #include "token.h"
 #include "parser.h"
 #include "expressionParser.h"
+#include "parserSymbols.h"
 
 void parseStatement(node* parent);
 void parseBlock(node* parent);
 void parseStatement(node* parent);
 void parseBlock(node* parent);
 TLM tokenListManager;
+
+SymbolStack* symbolStack;
 
 
 node* addNChildren(node* parent, int n)
@@ -108,6 +111,7 @@ void parseFunction(node* parent) {
                         exit(1);
                     }
                 }
+                pushFunction(symbolStack, function);
                 tokenListManager.index++;
                 parseStatement(function);
             } else {
@@ -421,7 +425,8 @@ void parseProgram(node* rootRef)
 
 node runParser(Token *tokenList)
 {
-    initExpressionParser((TLM *) &tokenListManager);
+    symbolStack = createSymbolStack();
+    initExpressionParser((TLM *) &tokenListManager, symbolStack);
 
     tokenListManager.tokens = tokenList;
     tokenListManager.index = 0;

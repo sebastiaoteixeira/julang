@@ -289,8 +289,12 @@ LLVMValueRef generateExpression(LLVMModuleRef mod, node ast, LLVMBuilderRef buil
         LLVMValueRef function = getValueFromSymbolTable(ast.children[0].data.text);
         unsigned int params_count = LLVMCountParams(function);
         LLVMValueRef* arguments = (LLVMValueRef*) malloc(sizeof(LLVMValueRef) * params_count);
-        for(unsigned int i = 0; i < params_count; i++) {
-            arguments[i] = generateExpression(mod, ast.children[i + 1], builder);
+        for (unsigned int i = 0; i < params_count; i++) {
+            for (unsigned int j = 0; j < ast.children[i + 1].length; j++) {
+                if (ast.children[i + 1].children[j].data.type == EXPRESSION) {
+                    arguments[i] = generateExpression(mod, ast.children[i + 1].children[j].children[0], builder);
+                }
+            }
         }
         return LLVMBuildCall2(builder, LLVMGlobalGetValueType(function), function, arguments, params_count, "calltmp");
     }

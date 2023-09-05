@@ -290,7 +290,10 @@ Token nextToken(FILE *iCode)
             t.type = BNOT;
             t.text = charToString(c);
             break;
-
+        case ':':
+            t.type = ARGDEF;
+            t.text = charToString(c);
+            break;
         }
 
         if (isDigit(c)) {
