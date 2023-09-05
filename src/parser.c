@@ -438,9 +438,11 @@ node runParser(Token *tokenList)
     ASTRoot.children = (node*) malloc(sizeof(node));
 
     parseProgram(&ASTRoot);
+    destroySymbolStack(symbolStack);
 
     return ASTRoot;
 }
+
 /*
 void iterateOverAST(node ast, void (*callback)(node, int), int depth)
 {
