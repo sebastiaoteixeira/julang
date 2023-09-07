@@ -5,6 +5,7 @@
 #include <openssl/sha.h>
 #include <stdlib.h>
 #include "codegen.h"
+#include "symbolsNaming.h"
 #include "token.h"
 #include "parser.h"
 
@@ -190,6 +191,42 @@ LLVMTypeRef getLLVMType(Token token) {
 }
 
 
+short getTokenType(LLVMTypeRef LLVMType) {
+    short type;
+    switch (LLVMGetTypeKind(LLVMType)) {
+        case LLVMIntegerTypeKind:
+            switch (LLVMGetIntTypeWidth(LLVMType)) {
+                case 1:
+                    type = BOOL;
+                    break;
+                case 8:
+                    type = CHAR;
+                    break;
+                case 32:
+                    type = INT;
+                    break;
+                case 64:
+                    type = LONG;
+                    break;
+                default:
+                    fprintf(stderr, "error: invalid type\n");
+                    exit(1);
+            }
+            break;
+        case LLVMFloatTypeKind:
+            type = FLOAT;
+            break;
+        case LLVMDoubleTypeKind:
+            type = DOUBLE;
+            break;
+        default:
+            fprintf(stderr, "error: invalid type\n");
+            exit(1);
+    }
+    return type;
+}
+
+
 void generateDeclaration(LLVMModuleRef mod, node ast, int global, LLVMBuilderRef builder) {
     short typeToken = ast.children[0].data.type;
     LLVMTypeRef type = getLLVMType(ast.children[0].data);
@@ -286,6 +323,20 @@ LLVMValueRef generateExpression(LLVMModuleRef mod, node ast, LLVMBuilderRef buil
         return LLVMBuildLoad2(builder, symbol->type, symbol->value, "loadtmp");
     } else if (ast.data.type == CALL) {
         // For a function call
+        short* arguments_types = (short*) malloc(sizeof(short) * (ast.length - 1));
+        for (int i = 0; i < ast.length - 1; i++) {
+            for (unsigned int j = 0; j < ast.children[i + 1].length; j++) {
+                if (ast.children[i + 1].children[j].data.type == EXPRESSION) {
+                    // TODO: Effectively get the type
+                    arguments_types[i] = ast.children[i + 1].children[j].children[0].data.type;
+                    if (arguments_types[i] == VAR) {
+                        arguments_types[i] = getTokenType(getSymbol(ast.children[i + 1].children[j].children[0].data.text)->type);
+                    }
+                }
+            }
+        }
+        char* paramsHash = generateParametersHash(arguments_types, ast.length - 1);
+        strcat(ast.children[0].data.text, paramsHash);
         LLVMValueRef function = getValueFromSymbolTable(ast.children[0].data.text);
         unsigned int params_count = LLVMCountParams(function);
         LLVMValueRef* arguments = (LLVMValueRef*) malloc(sizeof(LLVMValueRef) * params_count);
@@ -360,6 +411,37 @@ LLVMValueRef generateExpression(LLVMModuleRef mod, node ast, LLVMBuilderRef buil
     }
 
     return 0;
+}
+
+// Generate code for function
+LLVMValueRef generateFunction(LLVMModuleRef mod, char *name, LLVMTypeRef *llvm_param_types, unsigned int paramsLength, LLVMTypeRef ret_type, node ast, LLVMBuilderRef builder) {    
+    LLVMValueRef funct = createNewFunction(mod, name, llvm_param_types, paramsLength, getLLVMType(ast.children[0].data));
+    LLVMBasicBlockRef block = LLVMAppendBasicBlock(funct, "entry");
+    newSymbol(name, funct, LLVMTypeOf(funct));
+    newLevel();
+    LLVMBuilderRef functionBuilder = LLVMCreateBuilder();
+    LLVMPositionBuilderAtEnd(functionBuilder, block);
+    unsigned int params_count = LLVMCountParams(funct);
+    LLVMValueRef* paramsValues = (LLVMValueRef*) malloc(sizeof(LLVMValueRef) * params_count);
+    LLVMGetParams(funct, paramsValues);
+    for(unsigned int i = 0; i < params_count; i++) {
+        LLVMValueRef paramPtr = LLVMBuildAlloca(functionBuilder, LLVMTypeOf(paramsValues[i]), ast.children[i + 2].children[1].data.text);
+        LLVMBuildStore(functionBuilder, paramsValues[i], paramPtr);
+        newSymbol(ast.children[i + 2].children[1].data.text, paramPtr, LLVMTypeOf(paramsValues[i]));
+    }
+    free(paramsValues);
+    generateStatement(mod, ast.children[ast.length - 1], functionBuilder);
+    deleteLevel();
+    return funct;
+}
+
+int isBitmaskZero(unsigned int* bitmask, int size) {
+    for (int i = 0; i < size; i++) {
+        if (bitmask[i] != 0) {
+            return 0;
+        }
+    }
+    return 1;
 }
 
 // Generate code for statement
@@ -445,27 +527,115 @@ void generateStatement(LLVMModuleRef mod, node ast, LLVMBuilderRef builder) {
     } else if (ast.data.type == FORLOOPSTATEMENT) {
         // TODO
     } else if (ast.data.type == FUNCTION) {
-        LLVMTypeRef param_types[ast.length - 3];
+        int paramsLength = ast.length - 3;
         for (int i = 2; i < ast.length - 1; i++) {
-            param_types[i-2] = getLLVMType(ast.children[i].children[0].data);
+            if (ast.children[i].data.type == EXPRESSION) {
+                paramsLength--;
+            }
         }
-        LLVMValueRef funct = createNewFunction(mod, ast.children[1].data.text, param_types, ast.length - 3, getLLVMType(ast.children[0].data));
-        LLVMBasicBlockRef block = LLVMAppendBasicBlock(funct, "entry");
-        newSymbol(ast.children[1].data.text, funct, LLVMTypeOf(funct));
-        newLevel();
-        LLVMBuilderRef functionBuilder = LLVMCreateBuilder();
-        LLVMPositionBuilderAtEnd(functionBuilder, block);
-        unsigned int params_count = LLVMCountParams(funct);
-        LLVMValueRef* params = (LLVMValueRef*) malloc(sizeof(LLVMValueRef) * params_count);
-        LLVMGetParams(funct, params);
-        for(unsigned int i = 0; i < params_count; i++) {
-            LLVMValueRef paramPtr = LLVMBuildAlloca(functionBuilder, LLVMTypeOf(params[i]), ast.children[i + 2].children[1].data.text);
-            LLVMBuildStore(functionBuilder, params[i], paramPtr);
-            newSymbol(ast.children[i + 2].children[1].data.text, paramPtr, LLVMTypeOf(params[i]));
+        LLVMTypeRef* llvm_param_types = malloc(sizeof(LLVMTypeRef) * paramsLength);
+        short* param_types = malloc(sizeof(short) * paramsLength);
+        node* defaultExpressions = malloc(sizeof(node) * 2 * (ast.length - 3 - paramsLength));
+        int compulsoryParams = 0;
+        int paramsIndex = 0;
+        int expressionIndex = 0;
+        for (int i = 2; i < ast.length - 1; i++) {
+            // Count compulsory parameters ...
+            if (ast.children[i].data.type == EXPRESSION) {
+                compulsoryParams--;
+                // ... save default expressions ...
+                defaultExpressions[expressionIndex * 2] = ast.children[i - 1];
+                defaultExpressions[expressionIndex * 2 + 1] = ast.children[i].children[0];
+                expressionIndex++;
+            } else {
+                compulsoryParams++;
+                // ... and add types to the array
+                llvm_param_types[paramsIndex] = getLLVMType(ast.children[i].children[0].data);
+                param_types[paramsIndex] = ast.children[i].children[0].data.type;
+                paramsIndex++;
+            }
         }
-        free(params);
-        generateStatement(mod, ast.children[ast.length - 1], functionBuilder);
-        deleteLevel();
+
+        char* paramsHash = generateParametersHash(param_types, paramsLength);
+        char* rootFunctionName = (char *) malloc(sizeof(char) * strlen(ast.children[1].data.text) + 1);
+        strcpy(rootFunctionName, ast.children[1].data.text);
+        strcat(rootFunctionName, paramsHash);
+        LLVMValueRef rootFunction = generateFunction(mod, rootFunctionName, llvm_param_types, paramsLength, getLLVMType(ast.children[0].data), ast, builder);
+
+        // Generate a bitmask for non-compulsory parameters
+        unsigned int* paramsBitmask = malloc(sizeof(unsigned int) * (paramsLength / sizeof(unsigned int) + 1));
+        int remainingParams = paramsLength - compulsoryParams;
+        for (int i = 0; i < paramsLength / sizeof(unsigned int) + 1; i++) {
+            if (remainingParams < sizeof(unsigned int) * 8) {
+                paramsBitmask[i] = (1 << remainingParams) - 1;
+            } else {
+                paramsBitmask[i] = 0xFFFFFFFF;
+                remainingParams -= sizeof(unsigned int) * 8;
+            }
+        }
+
+        // Generate a subfunction for each combination of non-compulsory parameters
+        while (!isBitmaskZero(paramsBitmask, paramsLength / sizeof(unsigned int) + 1)) {
+            // Decrease bitmask
+            for (int i = 0; i < paramsLength / sizeof(unsigned int) + 1; i++) {
+                if (paramsBitmask[i] != 0) {
+                    paramsBitmask[i]--;
+                    break;
+                } else {
+                    paramsBitmask[i] = 0xFFFFFFFF;
+                }
+            }
+
+            // Generate parameters sequences
+            LLVMTypeRef* subFunctionLLVMParamTypes = malloc(sizeof(LLVMTypeRef) * (paramsLength));
+            short* subFunctionParamTypes = malloc(sizeof(short) * (paramsLength));
+            // Copy compulsory parameters to sequences
+            memcpy(subFunctionLLVMParamTypes, llvm_param_types, sizeof(LLVMTypeRef) * compulsoryParams);
+            memcpy(subFunctionParamTypes, param_types, sizeof(short) * compulsoryParams);
+            int nonCompulsoryParams = 0;
+            for (int i = 0; i < paramsLength - compulsoryParams; i++) {
+                if (paramsBitmask[sizeof(unsigned int) * i / 32] & (1 << (i % 32))) {
+                    subFunctionLLVMParamTypes[compulsoryParams + i] = llvm_param_types[compulsoryParams + i];
+                    subFunctionParamTypes[compulsoryParams + i] = param_types[compulsoryParams + i];
+                    nonCompulsoryParams++;
+                }
+            }
+
+            // Generate a function name
+            char* paramsHash = generateParametersHash(subFunctionParamTypes, compulsoryParams + nonCompulsoryParams);
+            char* subFunctionName = (char *) malloc(sizeof(char) * (strlen(rootFunctionName) + 1 + numberOfDigits(compulsoryParams + nonCompulsoryParams)));
+            strcpy(subFunctionName, ast.children[1].data.text);
+            strcat(subFunctionName, paramsHash);
+            LLVMValueRef subFunction = createNewFunction(mod, subFunctionName, llvm_param_types, compulsoryParams + nonCompulsoryParams, getLLVMType(ast.children[0].data));
+            LLVMBasicBlockRef block = LLVMAppendBasicBlock(subFunction, "entry");
+            newSymbol(subFunctionName, subFunction, LLVMTypeOf(subFunction));
+            LLVMBuilderRef functionBuilder = LLVMCreateBuilder();
+            LLVMPositionBuilderAtEnd(functionBuilder, block);
+            newLevel();
+
+            // Subfunction builder
+            LLVMValueRef* args = (LLVMValueRef*) malloc(sizeof(LLVMValueRef) * paramsLength);
+            int paramIndex = 0;
+            for (int i = 0; i < paramsLength ; i++) {
+                // NOTE: In this case it's the args length because paramsLength refers to
+                // the number of parameters in the root function that we are calling
+                if (i < compulsoryParams) {
+                    args[i] = LLVMGetParam(subFunction, paramIndex);
+                    paramIndex++;
+                } else {
+                    int nonCompulsoryIndex = i - compulsoryParams;
+                    if (paramsBitmask[sizeof(unsigned int) * nonCompulsoryIndex / 32] & (1 << (nonCompulsoryIndex % 32))) {
+                        args[i] = LLVMGetParam(subFunction, paramIndex);
+                        paramIndex++;
+                    } else {
+                        generateDeclaration(mod, defaultExpressions[nonCompulsoryIndex * 2], 0, functionBuilder);
+                        args[i] = generateExpression(mod, defaultExpressions[nonCompulsoryIndex * 2 + 1], functionBuilder);
+                    }
+                }
+            }
+            LLVMValueRef ret = LLVMBuildCall2(functionBuilder, LLVMGlobalGetValueType(rootFunction), rootFunction, args, paramsLength, "calltmp");
+            LLVMBuildRet(functionBuilder, ret);
+        }
     } else if (ast.data.type == RETURN) {
         LLVMBuildRet(builder, generateExpression(mod, ast.children[0].children[0], builder));
     } else if (ast.data.type == BREAK) {

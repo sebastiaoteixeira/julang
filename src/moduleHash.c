@@ -93,6 +93,19 @@ char* generateSymbolHash(char* input, char* encoded) {
     return encoded;
 }
 
+char* generateParametersHash(short* input, unsigned int length) {
+    char* text = (char*) malloc(sizeof(char) * (length + 1));
+    for (int i = 0; i < length; i++) {
+        text[i] = (char) (input[i] & 0xFF);
+    }
+    text[2*length] = '\0';
+    char* encoded = (char*) malloc(sizeof(char) * (1 + MD5_DIGEST_LENGTH * 2));
+    encoded[0] = '_';
+    generateSymbolHash(text, encoded + 1);
+    free(text);
+    return encoded;
+}
+
 char* generateModuleHash(Token* input) {
     char* text = (char*) malloc(sizeof(char) * 1024);
     extractTLMText(input, text);

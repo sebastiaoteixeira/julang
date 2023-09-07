@@ -4,5 +4,6 @@
 
 char* generateSymbolHash(char* input, char* encoded);
 char* generateModuleHash(Token* input);
+char* generateParametersHash(short* input, unsigned int length);
 
 #endif // SYMBOLSNAMING_H_INCLUDED
