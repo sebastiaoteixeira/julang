@@ -139,7 +139,9 @@ void parseImport(node* parent) {
         tokenListManager.index++;
         parseExpression(import);
 
+        TLM _tokenListManager = tokenListManager;
         pushImport(symbolStack, import);
+        tokenListManager = _tokenListManager;
     }
 
     return;
