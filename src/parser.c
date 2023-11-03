@@ -1,9 +1,12 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 #include "token.h"
 #include "parser.h"
 #include "expressionParser.h"
+#include "symbolsNaming.h"
 #include "parserSymbols.h"
+#include "logger.h"
 
 void parseStatement(node* parent);
 void parseBlock(node* parent);
@@ -13,13 +16,11 @@ TLM tokenListManager;
 
 SymbolStack* symbolStack;
 
-
 node* addNChildren(node* parent, int n)
 {
-    printf("Adding %d children to %x ...\n", n, parent->children);
+    if (verbose >= 5) printf("Adding %d children to %x ...\n", n, parent->children);
     parent->length += n;
     if (parent->length > 1) {
-        printf("Increasing capacity of node %x for %d children = %d bytes\n", parent->children, parent->length, sizeof(node) * parent->length);
         parent->children = (node *) realloc(parent->children, sizeof(node) * parent->length);
     }
     return parent->children + parent->length - n;
@@ -127,6 +128,23 @@ void parseFunction(node* parent) {
     return;
 }
 
+void parseImport(node* parent) {
+    node* import = addChild(parent);
+    import->data.type = IMPORT;
+    import->length = 0;
+    import->children = (node*) malloc(sizeof(node));
+
+    // Verify import
+    if (tokenListManager.tokens[tokenListManager.index].type == IMPORT) {
+        tokenListManager.index++;
+        parseExpression(import);
+
+        pushImport(symbolStack, import);
+    }
+
+    return;
+}
+
 void parseIfStatement(node* parent) {
     node* ifElseStatement = addChild(parent);
     ifElseStatement->data.type = IFSTATEMENT;
@@ -185,11 +203,9 @@ void parseDoWhileLoop(node* parent) {
             exit(1);
         }
     }
-
-    return doWhileLoop;
 }
 
-node parseForLoop(node* parent) {
+void parseForLoop(node* parent) {
     node* forLoopStatement = addChild(parent);
     forLoopStatement->data.type = FORLOOPSTATEMENT;
     forLoopStatement->length = 0;
@@ -230,7 +246,6 @@ node parseForLoop(node* parent) {
         }
     }
 
-    return;
 }
 
 void parseBreakStatement(node* parent) {
@@ -245,8 +260,6 @@ void parseBreakStatement(node* parent) {
         printf("Error: expected 'break' at line %d\n", tokenListManager.tokens[tokenListManager.index].line);
         exit(1);
     }
-
-    return;
 }
 
 void parseContinueStatement(node* parent) {
@@ -276,8 +289,6 @@ void parseReturnStatement(node* parent) {
         tokenListManager.index++;
         parseExpression(returnStatement);
     }
-
-    return returnStatement;
 }
 
 void parseStatement(node* parent)
@@ -328,6 +339,12 @@ void parseStatement(node* parent)
         parseReturnStatement(parent);
     }
 
+    // Verify import statement
+    else if (tokenListManager.tokens[tokenListManager.index].type == IMPORT) {
+        printf("Import\n");
+        parseImport(parent);
+    }
+
     // Verify break statement
     else if (tokenListManager.tokens[tokenListManager.index].type == BREAK) {
         printf("Break\n");
@@ -341,7 +358,10 @@ void parseStatement(node* parent)
     }
 
     // Verify expression
-    else if (tokenListManager.tokens[tokenListManager.index].type == VAR || isAnOperator(tokenListManager.tokens[tokenListManager.index]) || isALiteral(tokenListManager.tokens[tokenListManager.index])) {
+    else if (tokenListManager.tokens[tokenListManager.index].type == VAR
+            || isAnOperator(tokenListManager.tokens[tokenListManager.index]) 
+            || isALiteral(tokenListManager.tokens[tokenListManager.index])
+            || tokenListManager.tokens[tokenListManager.index].type == LBRACK) {
         printf("Expression\n");
         parseExpression(parent);
     }
@@ -351,6 +371,7 @@ void parseStatement(node* parent)
         printf("EOF\n");
         node* eofNode = addChild(parent);
         eofNode->data.type = EOF;
+        eofNode->length = 0;
     }
 
     // Verify if is the end of a block
@@ -358,6 +379,7 @@ void parseStatement(node* parent)
         printf("End of block\n");
         node* eofNode = addChild(parent);
         eofNode->data.type = EOF;
+        eofNode->length = 0;
     }
 
     else {
@@ -376,8 +398,6 @@ void parseStatement(node* parent)
 void parseStatementList(node* parent)
 {
     while (1) {
-        parseStatement(parent);
-        if (parent->children[parent->length - 1].data.type == EOF) break;
         parseStatement(parent);
         if (parent->children[parent->length - 1].data.type == EOF) break;
     }
@@ -423,9 +443,9 @@ void parseProgram(node* rootRef)
     return;
 }
 
-node runParser(Token *tokenList)
+node runParser(SymbolStack *_symbolStack, Token *tokenList)
 {
-    symbolStack = createSymbolStack();
+    symbolStack = _symbolStack;
     initExpressionParser((TLM *) &tokenListManager, symbolStack);
 
     tokenListManager.tokens = tokenList;
@@ -438,7 +458,6 @@ node runParser(Token *tokenList)
     ASTRoot.children = (node*) malloc(sizeof(node));
 
     parseProgram(&ASTRoot);
-    destroySymbolStack(symbolStack);
 
     return ASTRoot;
 }
