@@ -337,10 +337,24 @@ char *getImportSymbol(SymbolStack *stack, char *symbol, char *moduleHash) {
     return NULL;
 }
 
-char *extractModuleHash(SymbolStack *symbolStack, node ast, char *currentModuleHash) {
+/*
+    @param function: a dot or a var node that identifies the function
+*/
+char *getFunctionName(node *function) {
+    if (function->data.type == VAR) {
+        return function->data.text;
+    } else if (function->data.type == DOT) {
+        return getFunctionName(function->children + 1);
+    } else {
+        printf("Error: Expected function name at line %d\n", function->data.line);
+        exit(1);
+    }
+}
+
+char *extractModuleHash(SymbolStack *symbolStack, node ast) {
     char *LHS;
     if (ast.data.type == DOT) {
-        LHS = extractModuleHash(symbolStack, ast.children[0], currentModuleHash);
+        LHS = extractModuleHash(symbolStack, ast.children[0]);
     } else if (ast.data.type == VAR) {
         if (LHS = getImportSymbol(symbolStack, ast.data.text, NULL)) {
             return LHS;

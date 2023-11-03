@@ -99,16 +99,6 @@ node getParenthesizedExpression() {
     }
 }
 
-char *getFunctionName(node *function) {
-    if (function->children[0].data.type == VAR) {
-        return function->children[0].data.text;
-    } else if (function->children[0].data.type == DOT) {
-        return getFunctionName(&function->children[1]);
-    } else {
-        printf("Error: Expected function name at line %d\n", function->data.line);
-        exit(1);
-    }
-}
 
 void parseCall(node* parent) {
     node* fcall = parent;
@@ -144,7 +134,7 @@ void parseCall(node* parent) {
     tokenListManagerRef->index++;
     // Reorder arguments
     node *reordenedArgs = (node *) malloc(sizeof(node) * (fcall->length - 1));
-    verifyFunction(symbolStackRef, getFunctionName(fcall), extractModuleHash(symbolStackRef, fcall->children[0], getCurrentModuleHash()), fcall->children + 1, reordenedArgs, fcall->length - 1);
+    verifyFunction(symbolStackRef, getFunctionName(fcall->children), extractModuleHash(symbolStackRef, fcall->children[0]), fcall->children + 1, reordenedArgs, fcall->length - 1);
     for (int i = 1; i < fcall->length; i++) {
         fcall->children[i] = reordenedArgs[fcall->length - i - 1];
     }
