@@ -19,6 +19,8 @@ node* addChild(node* parent);
 
 void parseExpression(node* parent);
 
-node runParser(Token *tokens);
+#include "parserSymbols.h"
+
+node runParser(SymbolStack *symbolStack, Token *tokens);
 
 #endif
