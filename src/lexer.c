@@ -294,6 +294,10 @@ Token nextToken(FILE *iCode)
             t.type = ARGDEF;
             t.text = charToString(c);
             break;
+        case '.':
+            t.type = DOT;
+            t.text = charToString(c);
+            break;
         }
 
         if (isDigit(c)) {

@@ -22,6 +22,10 @@ void printToken(Token token) {
         str = "RETURN";
         break;
     
+    case IMPORT:
+        str = "IMPORT";
+        break;
+        
     case CALL:
         str = "CALL";
         break;

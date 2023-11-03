@@ -1,8 +1,25 @@
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
+#include <assert.h>
 #include "token.h"
 #include "parser.h"
 #include "parserSymbols.h"
+#include "module.h"
+#include "symbolsNaming.h"
+
+#define PATH_MAX 1024
+
+char *currentModuleHash;
+char *rootPath;
+
+void setCurrentModuleHash(char *hash) {
+    currentModuleHash = hash;
+}
+
+char *getCurrentModuleHash() {
+    return currentModuleHash;
+}
 
 SymbolStack* createSymbolStack() {
     SymbolStack* stack = (SymbolStack *) malloc(sizeof(SymbolStack));
@@ -69,7 +86,7 @@ void decreaseLevel(SymbolStack *stack) {
     }
 }
 
-void pushPrimitive(SymbolStack *stack, char *name, short type) {
+void pushPrimitive(SymbolStack *stack, char *name, char *moduleHash, short type) {
     Symbol symbol = {
         .name = name,
         .data = NULL,
@@ -79,13 +96,15 @@ void pushPrimitive(SymbolStack *stack, char *name, short type) {
     pushSymbol(stack, symbol);
 }
 
-void _pushFunction(SymbolStack *stack, char *name, short ret, Symbol *params, unsigned long paramsLength, unsigned long compulsoryArgsLength, int variadic) {
+void _pushFunction(SymbolStack *stack, char *name, char *moduleHash, short ret, Symbol *params, unsigned long paramsLength, unsigned long compulsoryArgsLength, int variadic) {
     Symbol symbol = {
         .name = name,
+        .moduleHash = malloc(strlen(getCurrentModuleHash()) + 1),
         .data = (FunctionData *) malloc(sizeof(FunctionData)),
         .level = stack->level,
         .type = FUNCTION
     };
+    strcpy(symbol.moduleHash, getCurrentModuleHash());
     ((FunctionData *) symbol.data)->ret = ret;
     ((FunctionData *) symbol.data)->params = params;
     ((FunctionData *) symbol.data)->paramsLength = paramsLength;
@@ -127,10 +146,10 @@ void pushFunction(SymbolStack *stack, node *function) {
         }
     }
 
-    _pushFunction(stack, function->children[1].data.text, function->children[0].data.type, params, paramsLength, compulsoryLength, 0);
+    _pushFunction(stack, function->children[1].data.text, getCurrentModuleHash(), function->children[0].data.type, params, paramsLength, compulsoryLength, 0);
 }
 
-void pushStaticArray(SymbolStack *stack, char *name, short type, unsigned long* dims, int nDims) {
+void pushStaticArray(SymbolStack *stack, char *name, char *moduleHash, short type, unsigned long* dims, int nDims) {
     Symbol symbol = {
         .name = name,
         .data = (StaticArrayData *) malloc(sizeof(StaticArrayData)),
@@ -143,7 +162,7 @@ void pushStaticArray(SymbolStack *stack, char *name, short type, unsigned long* 
     pushSymbol(stack, symbol);
 }
 
-void pushDynamicArray(SymbolStack *stack, char *name, short type) {
+void pushDynamicArray(SymbolStack *stack, char *name, char *moduleHash, short type) {
     Symbol symbol = {
         .name = name,
         .data = (DynamicArrayData *) malloc(sizeof(DynamicArrayData)),
@@ -154,7 +173,7 @@ void pushDynamicArray(SymbolStack *stack, char *name, short type) {
     pushSymbol(stack, symbol);
 }
 
-void pushObject(SymbolStack *stack, char *name, Symbol *fields, unsigned long fieldsLength) {
+void pushObject(SymbolStack *stack, char *name, char *moduleHash, Symbol *fields, unsigned long fieldsLength) {
     Symbol symbol = {
         .name = name,
         .data = (ObjectData *) malloc(sizeof(ObjectData)),
@@ -166,10 +185,10 @@ void pushObject(SymbolStack *stack, char *name, Symbol *fields, unsigned long fi
     pushSymbol(stack, symbol);
 }
 
-void verifyFunction(SymbolStack *stack, char *name, node *args, node *reordenedArgs, unsigned long argsLength) {
+void verifyFunction(SymbolStack *stack, char *name, char *moduleHash, node *args, node *reordenedArgs, unsigned long argsLength) {
     for (int i = stack->size - 1; i >= 0; i--) {
         // Search for a function with the same name
-        if (stack->table[i].type == FUNCTION && strcmp(stack->table[i].name, name) == 0) {
+        if (stack->table[i].type == FUNCTION && strcmp(stack->table[i].name, name) == 0 && strcmp(stack->table[i].moduleHash, moduleHash) == 0) {
             // Create a list of remaining parameters
             FunctionData *function = (FunctionData *) stack->table[i].data;
             Symbol *params = (Symbol *) malloc(sizeof(Symbol) * function->paramsLength);
@@ -236,4 +255,107 @@ void verifyFunction(SymbolStack *stack, char *name, node *args, node *reordenedA
     printf("Error: Function '%s' is not defined\n", name);
     exit(1);
     return;
+}
+
+void _pushImport(SymbolStack *stack, char *name, char *moduleHash, char *importedModuleHash) {
+    Symbol symbol = {
+        .name = name,
+        .moduleHash = getCurrentModuleHash(),
+        .data = (ImportData *) malloc(sizeof(ImportData)),
+        .level = stack->level,
+        .type = IMPORT
+    };
+    ((ImportData *) symbol.data)->moduleHash = importedModuleHash;
+    pushSymbol(stack, symbol);
+}
+
+void* getModulePath(node *lib, char *dest) {
+    // Node is of type DOT or VAR
+    // Its child 0 is an expression with DOT Tree
+    // The left part of the DOT Tree is the module path
+    // The right part of the DOT Tree is the module name
+
+    if (lib->data.type == DOT) {
+        getModulePath(lib->children, dest);
+        strcat(dest, "/");
+        strcat(dest, lib->children[1].data.text);
+    } else if (lib->data.type == VAR) {
+        strcat(dest, lib->data.text);
+    } else {
+        printf("Error: Invalid module path\n");
+        exit(1);
+    }
+}
+
+void pushImport(SymbolStack *stack, node *importedModuleNode) {
+    // Extract current module path
+    char modulePath[PATH_MAX];
+    strcpy(modulePath, getCurrentModule()->name);
+    // Remove the module file name
+    char *lastSlash = strrchr(modulePath, '/');
+    if (lastSlash != NULL) {
+        *(lastSlash + 1) = '\0';
+    } else {
+        *modulePath = '.';
+        *(modulePath+1) = '/';
+        *(modulePath+2) = '\0';
+    }
+
+    getModulePath(importedModuleNode->children->children, modulePath);
+    strcat(modulePath, ".ju");
+
+    // Import the module
+    moduleData module = importModule(stack, modulePath);
+    char *moduleHash = module.hash;
+    char *symbolName = module.name;
+    lastSlash = strrchr(symbolName, '/') + 1;
+    if (lastSlash != NULL) {
+        symbolName = lastSlash;
+    }
+
+
+    // Push the import symbol
+    _pushImport(stack, symbolName, getCurrentModuleHash(), moduleHash);
+}
+
+char *getImportSymbol(SymbolStack *stack, char *symbol, char *moduleHash) {
+    // Search for the import symbol with this ^ moduleHash
+    // If found, return the moduleHash of the imported module
+    // If not found, return NULL
+
+    assert(symbol != NULL);
+
+    if (moduleHash == NULL) moduleHash = getCurrentModuleHash();
+    
+    for (int i = 0; i < stack->size; i++) {
+        if (stack->table[i].type == IMPORT
+            && strcmp(stack->table[i].moduleHash, moduleHash) == 0
+            && strcmp(stack->table[i].name, symbol) == 0) {
+                return ((ImportData *) stack->table[i].data)->moduleHash;
+        }
+    }
+    return NULL;
+}
+
+char *extractModuleHash(SymbolStack *symbolStack, node ast, char *currentModuleHash) {
+    char *LHS;
+    if (ast.data.type == DOT) {
+        LHS = extractModuleHash(symbolStack, ast.children[0], currentModuleHash);
+    } else if (ast.data.type == VAR) {
+        if (LHS = getImportSymbol(symbolStack, ast.data.text, NULL)) {
+            return LHS;
+        } else {
+            return getCurrentModuleHash();
+        }
+    } else {
+        printf("Error: Invalid module path\n");
+        exit(1);
+    }
+    
+    char *importSymbol;
+    if (importSymbol = getImportSymbol(symbolStack, ast.children[1].data.text, LHS)) {
+        return importSymbol;
+    } else {
+        return LHS;
+    }
 }

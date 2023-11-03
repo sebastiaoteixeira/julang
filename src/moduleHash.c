@@ -63,7 +63,7 @@ char* base64Encode(unsigned char* hash, char* encoded) {
     const int d1 = 0b00111111;
 
     for (int i = 0; i < MD5_DIGEST_LENGTH; i+=3) {
-        length += 4;
+        length += 2;
 
         __u_char a = hash[i];
         __u_char b = i < MD5_DIGEST_LENGTH - 1 ? hash[i+1] : 0;
@@ -71,12 +71,17 @@ char* base64Encode(unsigned char* hash, char* encoded) {
 
         __u_char a_ = (a & a1) >> 2;
         __u_char b_ = ((a & b1) << 4) | ((b & b2) >> 4);
-        encoded[length-4] = base64[a_];
-        encoded[length-3] = base64[b_];
+        encoded[length-2] = base64[a_];
+        encoded[length-1] = base64[b_];
         if (i < MD5_DIGEST_LENGTH - 1) {
+            length++;
+
             __u_char c_ = ((b & c1) << 2) | ((c & c2) >> 6);
-            encoded[length-2] = base64[c_];
+            encoded[length-1] = base64[c_];
+            
             if (i < MD5_DIGEST_LENGTH - 2) {
+                length++;
+
                 __u_char d_ = c & d1;
                 encoded[length-1] = base64[d_];
             }
@@ -98,7 +103,7 @@ char* generateParametersHash(short* input, unsigned int length) {
     for (int i = 0; i < length; i++) {
         text[i] = (char) (input[i] & 0xFF);
     }
-    text[2*length] = '\0';
+    text[length] = '\0';
     char* encoded = (char*) malloc(sizeof(char) * (1 + MD5_DIGEST_LENGTH * 2));
     encoded[0] = '_';
     generateSymbolHash(text, encoded + 1);
@@ -109,7 +114,7 @@ char* generateParametersHash(short* input, unsigned int length) {
 char* generateModuleHash(Token* input) {
     char* text = (char*) malloc(sizeof(char) * 1024);
     extractTLMText(input, text);
-    char* encoded = (char*) malloc(sizeof(char) * ((MD5_DIGEST_LENGTH * 2)));
+    char* encoded = (char*) malloc(sizeof(char) * ((MD5_DIGEST_LENGTH * 4 / 3) + 3));
     generateSymbolHash(text, encoded);
     free(text);
     return encoded;
