@@ -45,6 +45,8 @@
 #define CALL 0x50
 #define ARGDEF 0x51
 #define ASM 0x52
+#define IMPORT 0x53
+#define RETURN 0x54
 // Variables
 #define VAR 0x60
 // Operators
@@ -70,9 +72,7 @@
 #define ASSIGN 0x8F
 #define BSL 0x90
 #define BSR 0x91
-// Other
-#define IMPORT 0xA0
-#define RETURN 0xA1
+#define DOT 0x92
 
 // Abstract Tokens
 #define EXPRESSION 0xB1
