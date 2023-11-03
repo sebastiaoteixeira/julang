@@ -1,18 +1,21 @@
-#include <llvm-c-15/llvm-c/Core.h>
-#include <llvm-c-15/llvm-c/BitWriter.h>
+#include <llvm-c/Core.h>
+#include <llvm-c/BitWriter.h>
 #include <stdio.h>
 #include <string.h>
-#include <openssl/sha.h>
 #include <stdlib.h>
 #include "codegen.h"
 #include "symbolsNaming.h"
 #include "token.h"
+#include "module.h"
+#include "parserSymbols.h"
 #include "parser.h"
 
 
 #define MAXIMUM_MODULE_NAME_LENGTH 64
-int compDebug = 1;
+int compDebug = 0;
 LLVMValueRef printf_f;
+
+SymbolStack* currentGlobalStack;
 
 // Internal functions
 int numberOfDigits(int number) {
@@ -31,6 +34,7 @@ LLVMBasicBlockRef newNamedBlock(LLVMBuilderRef builder, char *name, int id) {
     return LLVMAppendBasicBlock(LLVMGetBasicBlockParent(LLVMGetInsertBlock(builder)), newName);
 }
 
+
 // Symbol Table
 // Saves all local symbols in a linked list
 struct LST {
@@ -44,7 +48,7 @@ struct LST {
 
 int currentLevel;
 
-void startSymbolTable() {
+void initSymbolTable() {
     symbolTable.name = NULL;
     symbolTable.value = NULL;
     symbolTable.type = NULL;
@@ -69,7 +73,14 @@ void newSymbol(char *name, LLVMValueRef value, LLVMTypeRef type) {
     currentSymbol->type = type;
     currentSymbol->level = currentLevel;
     currentSymbol->next = (struct LST *) malloc(sizeof(struct LST));
-    currentSymbol->next->prev = currentSymbol;
+    *currentSymbol->next = (struct LST) {
+        .name = NULL,
+        .value = NULL,
+        .type = NULL,
+        .level = 0,
+        .prev = currentSymbol,
+        .next = NULL
+    };
 }
 
 struct LST* getSymbol(char *name) {
@@ -126,6 +137,8 @@ char* getModuleName(char *path) {
     return name;
 }
 
+
+
 // Type checking functions
 int isIntegerNumberType(LLVMTypeRef type) {
     LLVMTypeKind typeKind = LLVMGetTypeKind(type);
@@ -150,6 +163,7 @@ int isNumberType(LLVMTypeRef type) {
 int isBooleanType(LLVMTypeRef type) {
     return type == LLVMInt1Type();
 }
+
 
 LLVMModuleRef createModule(char* name) {
     return LLVMModuleCreateWithName(name);
@@ -227,6 +241,43 @@ short getTokenType(LLVMTypeRef LLVMType) {
 }
 
 
+// Add all global value of iMod to oMod
+void importSymbols(LLVMModuleRef oMod, LLVMModuleRef iMod) {
+    LLVMValueRef value = LLVMGetFirstGlobal(iMod);
+    while(value != NULL) {
+        LLVMTypeRef type = LLVMTypeOf(value);
+        LLVMAddGlobal(oMod, type, LLVMGetValueName(value));
+        value = LLVMGetNextGlobal(value);
+    }
+    LLVMValueRef function = LLVMGetFirstFunction(iMod);
+    while(function != NULL) {
+        if (strlen(LLVMGetValueName(function)) > 20) {
+            LLVMTypeRef type = LLVMGlobalGetValueType(function);
+
+            // LLVMGetValueName is working and returning the correct name
+            char* name = LLVMGetValueName(function);
+
+            // TODO: The LLVMAddFunction below is corrupting the oMod
+            // LLVMWriteBitcodeToFile will not work
+            LLVMAddFunction(oMod, LLVMGetValueName(function), type);
+
+            // LLVMGetReturnType is also not working (seg fault)
+            LLVMGetReturnType(type);
+            printf("Function Imported - %s(", name);
+            LLVMTypeRef *functionParams = malloc(sizeof(LLVMTypeRef) * (LLVMCountParams(function) + 1));
+
+            // LLVMGetParamTypes is also not working (seg fault)
+            LLVMGetParamTypes(type, functionParams);
+            for (int i = 0; i < LLVMCountParams(function); i++) {
+                printf("%s, ", LLVMPrintTypeToString(functionParams[i]));
+            }
+            printf(")\n");
+            free(functionParams);
+        }
+        function = LLVMGetNextFunction(function);
+    }
+}
+
 void generateDeclaration(LLVMModuleRef mod, node ast, int global, LLVMBuilderRef builder) {
     short typeToken = ast.children[0].data.type;
     LLVMTypeRef type = getLLVMType(ast.children[0].data);
@@ -280,7 +331,7 @@ LLVMValueRef convertToBoolean(LLVMModuleRef mod, LLVMValueRef value, LLVMBuilder
     // Verify if type is i1
     // If not convert to i1
     // The value should be 0 if value is 0 and 1 if value is not 0
-    // First, verify is is a float and get the compare function
+    // First, verify if is a float and get the compare function
     LLVMTypeRef type = LLVMTypeOf(value);
     if (isBooleanType(type)) {
         return value;
@@ -405,6 +456,8 @@ LLVMValueRef generateExpression(LLVMModuleRef mod, node ast, LLVMBuilderRef buil
         } else if (ast.data.type == XOR) {
             return LLVMBuildXor(builder, LHS, RHS, "xortmp");
         }
+    } else if (ast.data.type == DOT) {
+        
     } else {
         fprintf(stderr, "error: invalid token\n");
         exit(1);
@@ -414,8 +467,9 @@ LLVMValueRef generateExpression(LLVMModuleRef mod, node ast, LLVMBuilderRef buil
 }
 
 // Generate code for function
-LLVMValueRef generateFunction(LLVMModuleRef mod, char *name, LLVMTypeRef *llvm_param_types, unsigned int paramsLength, LLVMTypeRef ret_type, node ast, LLVMBuilderRef builder) {    
+LLVMValueRef generateFunction(LLVMModuleRef mod, char *moduleName, char *name, LLVMTypeRef *llvm_param_types, unsigned int paramsLength, LLVMTypeRef ret_type, node ast, LLVMBuilderRef builder) {    
     LLVMValueRef funct = createNewFunction(mod, name, llvm_param_types, paramsLength, getLLVMType(ast.children[0].data));
+
     LLVMBasicBlockRef block = LLVMAppendBasicBlock(funct, "entry");
     newSymbol(name, funct, LLVMTypeOf(funct));
     newLevel();
@@ -430,7 +484,7 @@ LLVMValueRef generateFunction(LLVMModuleRef mod, char *name, LLVMTypeRef *llvm_p
         newSymbol(ast.children[i + 2].children[1].data.text, paramPtr, LLVMTypeOf(paramsValues[i]));
     }
     free(paramsValues);
-    generateStatement(mod, ast.children[ast.length - 1], functionBuilder);
+    generateStatement(mod, moduleName, ast.children[ast.length - 1], functionBuilder);
     deleteLevel();
     return funct;
 }
@@ -445,7 +499,7 @@ int isBitmaskZero(unsigned int* bitmask, int size) {
 }
 
 // Generate code for statement
-void generateStatement(LLVMModuleRef mod, node ast, LLVMBuilderRef builder) {
+void generateStatement(LLVMModuleRef mod, char* moduleName, node ast, LLVMBuilderRef builder) {
     // Iterate over the root node's children and search for statements
     if (ast.data.type == IFSTATEMENT) {
         static int ifCount = 0;
@@ -472,12 +526,12 @@ void generateStatement(LLVMModuleRef mod, node ast, LLVMBuilderRef builder) {
         }
         // Generate true block
         LLVMPositionBuilderAtEnd(builder, ifBlocks[1]);
-        generateStatement(mod, ast.children[1], builder);
+        generateStatement(mod, moduleName, ast.children[1], builder);
         LLVMBuildBr(builder, ifBlocks[2]);
         // Generate false block
         if (ast.length == 3) {
             LLVMPositionBuilderAtEnd(builder, ifBlocks[3]);
-            generateStatement(mod, ast.children[2], builder);
+            generateStatement(mod, moduleName, ast.children[2], builder);
             LLVMBuildBr(builder, ifBlocks[2]);
         }
         // Back to merge block
@@ -498,7 +552,7 @@ void generateStatement(LLVMModuleRef mod, node ast, LLVMBuilderRef builder) {
         LLVMBuildCondBr(builder, condition, whileBlocks[1], whileBlocks[2]);
         // Generate while block
         LLVMPositionBuilderAtEnd(builder, whileBlocks[1]);
-        generateStatement(mod, ast.children[1], builder);
+        generateStatement(mod, moduleName, ast.children[1], builder);
         LLVMBuildBr(builder, whileBlocks[0]);
         // Back to merge block
         LLVMPositionBuilderAtEnd(builder, whileBlocks[2]);
@@ -515,7 +569,7 @@ void generateStatement(LLVMModuleRef mod, node ast, LLVMBuilderRef builder) {
         }
         // Generate do while block
         LLVMPositionBuilderAtEnd(builder, doWhileBlocks[0]);
-        generateStatement(mod, ast.children[0], builder);
+        generateStatement(mod, moduleName, ast.children[0], builder);
         LLVMBuildBr(builder, doWhileBlocks[1]);
         // Generate the condition
         LLVMPositionBuilderAtEnd(builder, doWhileBlocks[1]);
@@ -556,13 +610,16 @@ void generateStatement(LLVMModuleRef mod, node ast, LLVMBuilderRef builder) {
             }
         }
 
+        char* moduleHash = getModuleHash(moduleName);
         char* paramsHash = generateParametersHash(param_types, paramsLength);
-        char* rootFunctionName = (char *) malloc(sizeof(char) * strlen(ast.children[1].data.text) + 1);
-        strcpy(rootFunctionName, ast.children[1].data.text);
+        char* rootFunctionName = (char *) malloc(sizeof(char) * (strlen(ast.children[1].data.text) + strlen(paramsHash) + strlen(moduleHash) + 1));
+        strcpy(rootFunctionName, moduleHash);
+        strcat(rootFunctionName, ast.children[1].data.text);
         strcat(rootFunctionName, paramsHash);
-        LLVMValueRef rootFunction = generateFunction(mod, rootFunctionName, llvm_param_types, paramsLength, getLLVMType(ast.children[0].data), ast, builder);
+        LLVMValueRef rootFunction = generateFunction(mod, moduleName, rootFunctionName, llvm_param_types, paramsLength, getLLVMType(ast.children[0].data), ast, builder);
 
-        // Generate a bitmask for non-compulsory parameters
+
+        // Bitmask for non-compulsory parameters
         unsigned int* paramsBitmask = malloc(sizeof(unsigned int) * (paramsLength / sizeof(unsigned int) + 1));
         int remainingParams = paramsLength - compulsoryParams;
         for (int i = 0; i < paramsLength / sizeof(unsigned int) + 1; i++) {
@@ -604,7 +661,8 @@ void generateStatement(LLVMModuleRef mod, node ast, LLVMBuilderRef builder) {
             // Generate a function name
             char* paramsHash = generateParametersHash(subFunctionParamTypes, compulsoryParams + nonCompulsoryParams);
             char* subFunctionName = (char *) malloc(sizeof(char) * (strlen(rootFunctionName) + 1 + numberOfDigits(compulsoryParams + nonCompulsoryParams)));
-            strcpy(subFunctionName, ast.children[1].data.text);
+            strcpy(subFunctionName, moduleHash);
+            strcat(subFunctionName, ast.children[1].data.text);
             strcat(subFunctionName, paramsHash);
             LLVMValueRef subFunction = createNewFunction(mod, subFunctionName, llvm_param_types, compulsoryParams + nonCompulsoryParams, getLLVMType(ast.children[0].data));
             LLVMBasicBlockRef block = LLVMAppendBasicBlock(subFunction, "entry");
@@ -636,8 +694,18 @@ void generateStatement(LLVMModuleRef mod, node ast, LLVMBuilderRef builder) {
             LLVMValueRef ret = LLVMBuildCall2(functionBuilder, LLVMGlobalGetValueType(rootFunction), rootFunction, args, paramsLength, "calltmp");
             LLVMBuildRet(functionBuilder, ret);
         }
+        free(paramsBitmask);
     } else if (ast.data.type == RETURN) {
         LLVMBuildRet(builder, generateExpression(mod, ast.children[0].children[0], builder));
+    } else if (ast.data.type == IMPORT) {
+        LLVMModuleRef importedMod = getModuleRef(extractModuleHash(currentGlobalStack, ast.children->children[0], getCurrentModuleHash()));
+        size_t moduleIdSize;
+        char *moduleId = LLVMGetSourceFileName(importedMod, &moduleIdSize);
+        if (importedMod == NULL) {
+            fprintf(stderr, "error: module not found\n");
+            exit(1);
+        }
+        importSymbols(mod, importedMod);
     } else if (ast.data.type == BREAK) {
         // TODO
     } else if (ast.data.type == CONTINUE) {
@@ -645,7 +713,7 @@ void generateStatement(LLVMModuleRef mod, node ast, LLVMBuilderRef builder) {
     } else if (ast.data.type == BLOCK) {
         newLevel();
         for (int i = 0; i < ast.length; i++) {
-            generateStatement(mod, ast.children[i], builder);
+            generateStatement(mod, moduleName, ast.children[i], builder);
         }
         deleteLevel();
     } else if (ast.data.type == EXPRESSION) {
@@ -655,11 +723,13 @@ void generateStatement(LLVMModuleRef mod, node ast, LLVMBuilderRef builder) {
 }
 
 // Generate code for main function
-void generateMain(LLVMModuleRef mod, node ast, LLVMBuilderRef builder) {
+LLVMValueRef generateMain(LLVMModuleRef mod, char* name, node ast, LLVMBuilderRef builder) {
     // Create a new function
     printf("Creating main() function\n");
     LLVMTypeRef function_type = LLVMFunctionType(LLVMInt32Type(), NULL, 0, 0);
-    LLVMValueRef main = LLVMAddFunction(mod, "main", function_type);
+    char* mainName = (char *) malloc(sizeof(char) * (strlen(getModuleHash(name)) + 6));
+    sprintf(mainName, "%s_main", getModuleHash(name));
+    LLVMValueRef main = LLVMAddFunction(mod, mainName, function_type);
     printf("main() created\n");
     LLVMBasicBlockRef entry = LLVMAppendBasicBlock(main, "entry");
     LLVMPositionBuilderAtEnd(builder, entry);
@@ -674,19 +744,23 @@ void generateMain(LLVMModuleRef mod, node ast, LLVMBuilderRef builder) {
     // Iterate over the root node's children and search for instruction
     for (int i = 0; i < ast.length; i++) {
         if (ast.children[i].data.type != DECLARATION) {
-            generateStatement(mod, ast.children[i], builder);
+            generateStatement(mod, name, ast.children[i], builder);
         }
     }
 
     LLVMBuildRet(builder, LLVMConstInt(LLVMInt32Type(), 0, 0));
+
+    return main;
 }
 
-void generateCode(char *name, node ast) {
-    LLVMModuleRef mod = createModule(getModuleName(name));
+
+LLVMModuleRef generateCode(char *name, SymbolStack *_currentGlobalStack, node ast, int isMain) {
+    LLVMModuleRef mod = createModule(name);
     LLVMBuilderRef builder = LLVMCreateBuilder();
 
-    startSymbolTable();
+    currentGlobalStack = _currentGlobalStack;
 
+    initSymbolTable();
 
     // Verify if first node is the root node
     if (ast.data.type != ROOT) {
@@ -697,15 +771,28 @@ void generateCode(char *name, node ast) {
     generateSymbols(mod, ast);
 
     // Create main function
-    generateMain(mod, ast, builder);
+    LLVMValueRef mainFunction = generateMain(mod, name, ast, builder);
+    if (isMain) {
+        // Create a new function
+        LLVMTypeRef function_type = LLVMFunctionType(LLVMInt32Type(), NULL, 0, 0);
+        LLVMValueRef main = LLVMAddFunction(mod, "main", function_type);
+        LLVMBasicBlockRef entry = LLVMAppendBasicBlock(main, "entry");
+        LLVMPositionBuilderAtEnd(builder, entry);
+        // Call main function
+        LLVMValueRef ret = LLVMBuildCall2(builder, LLVMGlobalGetValueType(mainFunction), mainFunction, NULL, 0, "calltmp");
+        LLVMBuildRet(builder, ret);
+    }
 
     // Generate bytecode
-    char* destinationFile = (char *) malloc(strlen(name));
+    char* destinationFile = (char *) malloc(strlen(name) + 1);
     strcpy(destinationFile, name);
-    char* BCExtension = ".bc";
-    for (int i = 0; i < strlen(BCExtension); i++)
-        destinationFile[strlen(destinationFile) - 3 + i] = BCExtension[i];
+    strcpy(strrchr(destinationFile, 46), ".bc");
+    size_t moduleIdSize;
+    char *moduleId = LLVMGetSourceFileName(mod, &moduleIdSize);
     if (LLVMWriteBitcodeToFile(mod, destinationFile) != 0) {
         fprintf(stderr, "error writing bitcode to file, skipping\n");
     }
+    free(destinationFile);
+
+    return mod;
 }
