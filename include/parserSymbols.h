@@ -84,6 +84,7 @@ void _pushImport(SymbolStack *stack, char *name, char *currentModuleHash, char *
 void pushImport(SymbolStack *stack, node *importedModuleNode);
 
 char *getImportSymbol(SymbolStack *stack, char *symbol, char *moduleHash);
-char *extractModuleHash(SymbolStack *stack, node ast, char *currentModuleName);
+char *extractModuleHash(SymbolStack *stack, node ast);
+char *getFunctionName(node *function);
 
 #endif // PARSER_SYMBOLS_H
