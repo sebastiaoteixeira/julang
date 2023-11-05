@@ -445,3 +445,6 @@ short resolveExpressionType(SymbolStack *stack, node *expression) {
     }
 }
 
+int verifyType(SymbolStack* stack, node *expression1, node *expression2) {
+    return resolveExpressionType(stack, expression1) == resolveExpressionType(stack, expression2);
+}
