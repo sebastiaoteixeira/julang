@@ -27,7 +27,7 @@ SymbolStack *createSymbolStack();
 void destroySymbolStack(SymbolStack *stack);
 void pushSymbol(SymbolStack *stack, Symbol symbol);
 Symbol popSymbol(SymbolStack *stack);
-Symbol *findSymbol(SymbolStack *stack, char *name);
+Symbol *findSymbol(SymbolStack *stack, char *name, char *moduleHash);
 void increaseLevel(SymbolStack *stack);
 void decreaseLevel(SymbolStack *stack);
 
@@ -86,5 +86,9 @@ void pushImport(SymbolStack *stack, node *importedModuleNode);
 char *getImportSymbol(SymbolStack *stack, char *symbol, char *moduleHash);
 char *extractModuleHash(SymbolStack *stack, node ast);
 char *getFunctionName(node *function);
+
+short getSymbolType(SymbolStack *stack, node *symbol);
+short resolveExpressionType(SymbolStack *stack, node *expression);
+int verifyType(SymbolStack *stack, node *expression1, node *expression2);
 
 #endif // PARSER_SYMBOLS_H
