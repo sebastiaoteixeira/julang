@@ -66,9 +66,10 @@ Symbol popSymbol(SymbolStack *stack) {
     return stack->table[stack->size];
 }
 
-Symbol *findSymbol(SymbolStack *stack, char *name) {
+Symbol *findSymbol(SymbolStack *stack, char *name, char *moduleHash) {
+    if (moduleHash == NULL) moduleHash = getCurrentModuleHash();
     for (int i = stack->size - 1; i >= 0; i--) {
-        if (strcmp(stack->table[i].name, name) == 0) {
+        if (strcmp(stack->table[i].name, name) == 0 && strcmp(stack->table[i].moduleHash, moduleHash) == 0) {
             return &(stack->table[i]);
         }
     }
@@ -196,6 +197,7 @@ void verifyFunction(SymbolStack *stack, char *name, char *moduleHash, node *args
             Symbol *remainingParams = params;
             int remainingParamsLength = function->paramsLength;
             int ordened = 1;
+            int allParamsFound = 1;
             // Add the arguments to reordenedArgs
             for (int j = 0; j < argsLength; j++) {
                 // Verify if is an unordered argument
@@ -223,11 +225,9 @@ void verifyFunction(SymbolStack *stack, char *name, char *moduleHash, node *args
                             remainingParamsLength--;
                             break;
                         }
-                        // If the parameter is not found, it is an error
-                        if (k == remainingParamsLength - 1) {
-                            printf("Error: Function '%s' does not have a parameter named '%s'\n", name, args[j].children[0].data.text);
-                            exit(1);
-                        }
+                        // If the parameter is not found, this is not the function we are looking for
+                        allParamsFound = 0;
+                        goto nextFunction;
                     }
                 }
             }
@@ -243,11 +243,11 @@ void verifyFunction(SymbolStack *stack, char *name, char *moduleHash, node *args
                 }
             }
             
+            nextFunction:
+
             free(params);
             
-            if (compulsoryArgsMissing) {
-                continue;
-            }
+            if (compulsoryArgsMissing || !allParamsFound) continue;
 
             return;
         }
@@ -373,3 +373,75 @@ char *extractModuleHash(SymbolStack *symbolStack, node ast) {
         return LHS;
     }
 }
+
+
+short getSymbolType(SymbolStack *stack, node *symbolNode) {
+    if (symbolNode->data.type == VAR) {
+        Symbol *symbol = findSymbol(stack, symbolNode->data.text, NULL);
+        if (symbol == NULL) {
+            printf("Error: Symbol '%s' is not defined\n", symbolNode->data.text);
+            exit(1);
+        }
+        return symbol->type;
+    } else if (symbolNode->data.type == DOT) {
+        char *moduleHash = extractModuleHash(stack, *symbolNode);
+        Symbol *symbol = findSymbol(stack, symbolNode->children[1].data.text, moduleHash);
+        if (symbol == NULL) {
+            printf("Error: Symbol '%s' is not defined\n", symbolNode->children[1].data.text);
+            exit(1);
+        }
+        return symbol->type;
+    } else {
+        printf("Error: Expected symbol at line %d\n", symbolNode->data.line);
+        exit(1);
+    }
+}
+
+#define TYPES_COUNT 6
+
+// The value in each cell is the type of the result of the operation
+// CHAR, INT, LONG, FLOAT, DOUBLE, BOOL
+const unsigned char arithmeticsTypesResolutionTable[TYPES_COUNT][TYPES_COUNT] = 
+{
+    {CHAR, INT, LONG, FLOAT, DOUBLE, CHAR},
+    {INT, INT, LONG, FLOAT, DOUBLE, INT},
+    {LONG, LONG, LONG, FLOAT, DOUBLE, LONG},
+    {FLOAT, FLOAT, FLOAT, FLOAT, DOUBLE, FLOAT},
+    {DOUBLE, DOUBLE, DOUBLE, DOUBLE, DOUBLE, DOUBLE},
+    {CHAR, INT, LONG, FLOAT, DOUBLE, BOOL}
+};
+
+short resolveExpressionType(SymbolStack *stack, node *expression) {
+    if (expression->data.type == VAR || expression->data.type == DOT)
+        return getSymbolType(stack, expression);
+        
+    if (expression->data.type == INUM)
+        return INT;
+    
+    if (expression->data.type == FNUM)
+        return FLOAT;
+    
+    if (expression->data.type == TRUE || expression->data.type == FALSE)
+        return BOOL;
+
+    if (expression->data.type >= PLUS && expression->data.type <= MOD) {
+        short types[2];
+        types[0] = resolveExpressionType(stack, expression->children);
+        types[1] = resolveExpressionType(stack, expression->children + 1);
+        return arithmeticsTypesResolutionTable[types[0] - CHAR][types[1] - CHAR];
+    }
+        
+    if (expression->data.type >= NOT && expression->data.type <= LTE)
+        return BOOL;
+        
+    if (expression->data.type >= ASSIGN && expression->data.type <= BSR)
+        return resolveExpressionType(stack, expression->children);
+    
+    if (expression->data.type == CALL) {
+        char *functionName = getFunctionName(expression->children);
+        verifyFunction(stack, functionName, NULL, expression->children + 1, NULL, expression->children[1].length);
+        Symbol *function = findSymbol(stack, functionName, NULL);
+        return ((FunctionData *) function->data)->ret;
+    }
+}
+
