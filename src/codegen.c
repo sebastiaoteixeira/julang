@@ -375,14 +375,12 @@ LLVMValueRef generateExpression(LLVMModuleRef mod, node ast, LLVMBuilderRef buil
     } else if (ast.data.type == CALL) {
         // For a function call
         short* arguments_types = (short*) malloc(sizeof(short) * (ast.length - 1));
+        LLVMValueRef* arguments = (LLVMValueRef*) malloc(sizeof(LLVMValueRef) * (ast.length - 1));
         for (int i = 0; i < ast.length - 1; i++) {
-            for (unsigned int j = 0; j < ast.children[i + 1].length; j++) {
-                if (ast.children[i + 1].children[j].data.type == EXPRESSION) {
-                    // TODO: Effectively get the type
-                    arguments_types[i] = ast.children[i + 1].children[j].children[0].data.type;
-                    if (arguments_types[i] == VAR) {
-                        arguments_types[i] = getTokenType(getSymbol(ast.children[i + 1].children[j].children[0].data.text)->type);
-                    }
+            for (unsigned int j = 0; j < ast.children[i+1].length; j++) {
+                if (ast.children[i+1].children[j].data.type == EXPRESSION) {
+                    arguments[i] = generateExpression(mod, ast.children[i+1].children[j].children[0], builder);
+                    arguments_types[i] = getTokenType(LLVMTypeOf(arguments[i]));
                 }
             }
         }
@@ -394,14 +392,6 @@ LLVMValueRef generateExpression(LLVMModuleRef mod, node ast, LLVMBuilderRef buil
         sprintf(fullName, "%s%s%s", moduleHash, functionName, paramsHash);
         LLVMValueRef function = LLVMGetNamedFunction(mod, fullName);
         unsigned int params_count = LLVMCountParams(function);
-        LLVMValueRef* arguments = (LLVMValueRef*) malloc(sizeof(LLVMValueRef) * params_count);
-        for (unsigned int i = 0; i < params_count; i++) {
-            for (unsigned int j = 0; j < ast.children[i + 1].length; j++) {
-                if (ast.children[i + 1].children[j].data.type == EXPRESSION) {
-                    arguments[i] = generateExpression(mod, ast.children[i + 1].children[j].children[0], builder);
-                }
-            }
-        }
         return LLVMBuildCall2(builder, LLVMGlobalGetValueType(function), function, arguments, params_count, "calltmp");
     }
 
