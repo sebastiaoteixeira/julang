@@ -48,7 +48,7 @@ typedef struct {
 
 void _pushFunction(SymbolStack *stack, char *name, char *moduleHash, short ret, Symbol *params, unsigned long paramsLength, unsigned long compulsoryArgsLength, int variadic);
 void pushFunction(SymbolStack *stack, node *function);
-void verifyFunction(SymbolStack *stack, char *name, char *moduleHash, node *args, node *reordenedArgs, unsigned long argsLength);
+short verifyFunction(SymbolStack *stack, char *name, char *moduleHash, node *args, node *reordenedArgs, unsigned long argsLength);
 
 // Static arrays
 typedef struct {
