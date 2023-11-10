@@ -722,7 +722,7 @@ LLVMValueRef generateMain(LLVMModuleRef mod, char* name, node ast, LLVMBuilderRe
     printf("Creating main() function\n");
     LLVMTypeRef function_type = LLVMFunctionType(LLVMInt32Type(), NULL, 0, 0);
     char* mainName = (char *) malloc(sizeof(char) * (strlen(getModuleHash(name)) + 6));
-    sprintf(mainName, "%s_main", getModuleHash(name));
+    sprintf(mainName, "%smain", getModuleHash(name));
     LLVMValueRef main = LLVMAddFunction(mod, mainName, function_type);
     printf("main() created\n");
     LLVMBasicBlockRef entry = LLVMAppendBasicBlock(main, "entry");

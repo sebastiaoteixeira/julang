@@ -186,7 +186,7 @@ void pushObject(SymbolStack *stack, char *name, char *moduleHash, Symbol *fields
     pushSymbol(stack, symbol);
 }
 
-void verifyFunction(SymbolStack *stack, char *name, char *moduleHash, node *args, node *reordenedArgs, unsigned long argsLength) {
+short verifyFunction(SymbolStack *stack, char *name, char *moduleHash, node *args, node *reordenedArgs, unsigned long argsLength) {
     for (int i = stack->size - 1; i >= 0; i--) {
         // Search for a function with the same name
         if (stack->table[i].type == FUNCTION && strcmp(stack->table[i].name, name) == 0 && strcmp(stack->table[i].moduleHash, moduleHash) == 0) {
@@ -249,12 +249,11 @@ void verifyFunction(SymbolStack *stack, char *name, char *moduleHash, node *args
             
             if (compulsoryArgsMissing || !allParamsFound) continue;
 
-            return;
+            return function->ret;
         }
     }
     printf("Error: Function '%s' is not defined\n", name);
     exit(1);
-    return;
 }
 
 void _pushImport(SymbolStack *stack, char *name, char *moduleHash, char *importedModuleHash) {
@@ -439,9 +438,7 @@ short resolveExpressionType(SymbolStack *stack, node *expression) {
     
     if (expression->data.type == CALL) {
         char *functionName = getFunctionName(expression->children);
-        verifyFunction(stack, functionName, NULL, expression->children + 1, NULL, expression->children[1].length);
-        Symbol *function = findSymbol(stack, functionName, NULL);
-        return ((FunctionData *) function->data)->ret;
+        return verifyFunction(stack, functionName, NULL, expression->children + 1, NULL, expression->children[1].length);
     }
 }
 
