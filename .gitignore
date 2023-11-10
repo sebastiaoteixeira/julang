@@ -1,6 +1,7 @@
 *.save
 *.cbp
 .vscode/*
+.VSCode*
 *.code-workspace
 *.xml
 *.gch
@@ -9,3 +10,5 @@
 vgcore.*
 bin/*
 out/*
+obj/*
+
