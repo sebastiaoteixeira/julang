@@ -7,7 +7,8 @@
 int isLetter(char c);
 int isDigit(char c);
 
-Token* runLexer(FILE* iCode);
+Token* runLexer(FILE *iCode);
+void destroyTokenList(Token **tokenList);
 
 Token nextToken(FILE *iCode);
 void printTokenList(Token *tokenList);

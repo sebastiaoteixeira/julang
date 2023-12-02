@@ -311,7 +311,7 @@ Token nextToken(FILE *iCode)
     }
     t.type = EOF;
     t.line = linecount;
-    t.text = "\0";
+    t.text = NULL;
     return t;
 }
 
@@ -329,4 +329,17 @@ Token *runLexer(FILE *iCode)
     } while ((tokenList + (length-1))->type != EOF);
 
     return tokenList;
+}
+
+void destroyTokenList(Token **tokenListRef)
+{
+    Token *tokenList = *tokenListRef;
+    int i = 0;
+    while(tokenList[i-1].type != EOF) {
+        free(tokenList[i].text);
+        i++;
+    };
+
+    free(tokenList);
+    *tokenListRef = NULL;
 }
