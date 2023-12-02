@@ -259,11 +259,12 @@ short verifyFunction(SymbolStack *stack, char *name, char *moduleHash, node *arg
 void _pushImport(SymbolStack *stack, char *name, char *moduleHash, char *importedModuleHash) {
     Symbol symbol = {
         .name = name,
-        .moduleHash = getCurrentModuleHash(),
+        .moduleHash = (char *) malloc(strlen(moduleHash) + 1),
         .data = (ImportData *) malloc(sizeof(ImportData)),
         .level = stack->level,
         .type = IMPORT
     };
+    strcpy(symbol.moduleHash, moduleHash);
     ((ImportData *) symbol.data)->moduleHash = importedModuleHash;
     pushSymbol(stack, symbol);
 }

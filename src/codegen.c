@@ -269,7 +269,9 @@ void importSymbols(LLVMModuleRef oMod, LLVMModuleRef iMod) {
             // LLVMGetParamTypes is also not working (seg fault)
             LLVMGetParamTypes(type, functionParams);
             for (int i = 0; i < LLVMCountParams(function); i++) {
-                printf("%s, ", LLVMPrintTypeToString(functionParams[i]));
+                char *typeString = LLVMPrintTypeToString(functionParams[i]);
+                printf("%s, ", typeString);
+                free(typeString);
             }
             printf(")\n");
             free(functionParams);
@@ -385,14 +387,18 @@ LLVMValueRef generateExpression(LLVMModuleRef mod, node ast, LLVMBuilderRef buil
             }
         }
         char* paramsHash = generateParametersHash(arguments_types, ast.length - 1);
+        free(arguments_types);
         node* functionSymbolName = ast.children;
         char* moduleHash = extractModuleHash(currentGlobalStack, *functionSymbolName);
         char* functionName = getFunctionName(functionSymbolName);
         char* fullName = (char *) malloc(sizeof(char) * (strlen(moduleHash) + strlen(functionName) + strlen(paramsHash) + 1));
         sprintf(fullName, "%s%s%s", moduleHash, functionName, paramsHash);
         LLVMValueRef function = LLVMGetNamedFunction(mod, fullName);
+        free(fullName);
+
         unsigned int params_count = LLVMCountParams(function);
         return LLVMBuildCall2(builder, LLVMGlobalGetValueType(function), function, arguments, params_count, "calltmp");
+        free(arguments);
     }
 
     // For binary operation
@@ -638,15 +644,12 @@ void generateStatement(LLVMModuleRef mod, char* moduleName, node ast, LLVMBuilde
             }
 
             // Generate parameters sequences
-            LLVMTypeRef* subFunctionLLVMParamTypes = malloc(sizeof(LLVMTypeRef) * (paramsLength));
             short* subFunctionParamTypes = malloc(sizeof(short) * (paramsLength));
             // Copy compulsory parameters to sequences
-            memcpy(subFunctionLLVMParamTypes, llvm_param_types, sizeof(LLVMTypeRef) * compulsoryParams);
             memcpy(subFunctionParamTypes, param_types, sizeof(short) * compulsoryParams);
             int nonCompulsoryParams = 0;
             for (int i = 0; i < paramsLength - compulsoryParams; i++) {
                 if (paramsBitmask[sizeof(unsigned int) * i / 32] & (1 << (i % 32))) {
-                    subFunctionLLVMParamTypes[compulsoryParams + i] = llvm_param_types[compulsoryParams + i];
                     subFunctionParamTypes[compulsoryParams + i] = param_types[compulsoryParams + i];
                     nonCompulsoryParams++;
                 }
@@ -654,6 +657,7 @@ void generateStatement(LLVMModuleRef mod, char* moduleName, node ast, LLVMBuilde
 
             // Generate a function name
             char* paramsHash = generateParametersHash(subFunctionParamTypes, compulsoryParams + nonCompulsoryParams);
+            free(subFunctionParamTypes);
             char* subFunctionName = (char *) malloc(sizeof(char) * (strlen(rootFunctionName) + 1 + numberOfDigits(compulsoryParams + nonCompulsoryParams)));
             strcpy(subFunctionName, moduleHash);
             strcat(subFunctionName, ast.children[1].data.text);
@@ -688,7 +692,11 @@ void generateStatement(LLVMModuleRef mod, char* moduleName, node ast, LLVMBuilde
             LLVMValueRef ret = LLVMBuildCall2(functionBuilder, LLVMGlobalGetValueType(rootFunction), rootFunction, args, paramsLength, "calltmp");
             LLVMBuildRet(functionBuilder, ret);
         }
+
+        free(param_types);
+        free(llvm_param_types);
         free(paramsBitmask);
+
     } else if (ast.data.type == RETURN) {
         LLVMBuildRet(builder, generateExpression(mod, ast.children[0].children[0], builder));
     } else if (ast.data.type == IMPORT) {

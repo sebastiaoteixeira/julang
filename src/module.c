@@ -25,7 +25,10 @@ FILE *readFile(char *fileName)
 char *getModuleHash(char *filename) {
     FILE *fp = readFile(filename);
     Token *tokenList = runLexer(fp);
-    return generateModuleHash(tokenList);
+    char *modeHash = generateModuleHash(tokenList);
+    destroyTokenList(&tokenList);
+    fclose(fp);
+    return modeHash;
 }
 
 moduleData compileModule(SymbolStack *symbolStack, char* filePath, int isMain) {
@@ -79,6 +82,7 @@ moduleData compileModule(SymbolStack *symbolStack, char* filePath, int isMain) {
     system(llcCompileCommand);
     free(llcCompileCommand);
     
+    free(getCurrentModuleHash());
 
     popModule();
     setCurrentModuleHash(oldModuleHash);
