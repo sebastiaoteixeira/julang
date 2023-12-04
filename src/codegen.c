@@ -389,7 +389,7 @@ LLVMValueRef generateExpression(LLVMModuleRef mod, node ast, LLVMBuilderRef buil
         char* paramsHash = generateParametersHash(arguments_types, ast.length - 1);
         free(arguments_types);
         node* functionSymbolName = ast.children;
-        char* moduleHash = getImportedSymbolHash(currentGlobalStack, *functionSymbolName);
+        char* moduleHash = getImportedSymbolHash(currentGlobalStack, *functionSymbolName, extractModuleHash(currentGlobalStack, *functionSymbolName));
         char* functionName = getSymbolName(functionSymbolName);
         char* fullName = (char *) malloc(sizeof(char) * (strlen(moduleHash) + strlen(functionName) + strlen(paramsHash) + 1));
         sprintf(fullName, "%s%s%s", moduleHash, functionName, paramsHash);
@@ -706,7 +706,7 @@ void generateStatement(LLVMModuleRef mod, char* moduleName, node ast, LLVMBuilde
     } else if (ast.data.type == RETURN) {
         LLVMBuildRet(builder, generateExpression(mod, ast.children[0].children[0], builder));
     } else if (ast.data.type == IMPORT) {
-        LLVMModuleRef importedMod = getModuleRef(getImportedSymbolHash(currentGlobalStack, ast.children->children[0]));
+        LLVMModuleRef importedMod = getModuleRef(getImportedSymbolHash(currentGlobalStack, ast.children->children[0], getCurrentModuleHash()));
         size_t moduleIdSize;
         char *moduleId = LLVMGetSourceFileName(importedMod, &moduleIdSize);
         if (importedMod == NULL) {

@@ -463,9 +463,9 @@ char *extractModuleHash(SymbolStack *symbolStack, node ast) {
 
 // Similar to extractModuleHash but ...
 // It's used to get module hash from import statements
-char *getImportedSymbolHash(SymbolStack *stack, node ast) {
+char *getImportedSymbolHash(SymbolStack *stack, node ast, char *moduleHash) {
     char *symbolName = getSymbolName(&ast);
-    Symbol *symbol = findSymbol(stack, symbolName, getCurrentModuleHash());
+    Symbol *symbol = findSymbol(stack, symbolName, moduleHash);
     if (symbol == NULL) {
         printf("Error: Symbol '%s' is not defined\n", symbolName);
         exit(1);
