@@ -91,7 +91,7 @@ char *getImportSymbol(SymbolStack *stack, char *symbol, char *moduleHash);
 char *extractModuleHash(SymbolStack *stack, node ast);
 char *getSymbolName(node *function);
 
-char *getImportedSymbolHash(SymbolStack *stack, node ast);
+char *getImportedSymbolHash(SymbolStack *stack, node ast, char *moduleHash);
 short getSymbolType(SymbolStack *stack, node *symbol);
 short resolveExpressionType(SymbolStack *stack, node *expression);
 int verifyType(SymbolStack *stack, node *expression1, node *expression2);
