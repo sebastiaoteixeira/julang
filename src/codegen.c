@@ -389,12 +389,17 @@ LLVMValueRef generateExpression(LLVMModuleRef mod, node ast, LLVMBuilderRef buil
         char* paramsHash = generateParametersHash(arguments_types, ast.length - 1);
         free(arguments_types);
         node* functionSymbolName = ast.children;
-        char* moduleHash = extractModuleHash(currentGlobalStack, *functionSymbolName);
-        char* functionName = getFunctionName(functionSymbolName);
+        char* moduleHash = getImportedSymbolHash(currentGlobalStack, *functionSymbolName);
+        char* functionName = getSymbolName(functionSymbolName);
         char* fullName = (char *) malloc(sizeof(char) * (strlen(moduleHash) + strlen(functionName) + strlen(paramsHash) + 1));
         sprintf(fullName, "%s%s%s", moduleHash, functionName, paramsHash);
         LLVMValueRef function = LLVMGetNamedFunction(mod, fullName);
         free(fullName);
+
+        if (function == NULL) {
+            fprintf(stderr, "error: function %s not found\n", functionName);
+            exit(1);
+        }
 
         unsigned int params_count = LLVMCountParams(function);
         return LLVMBuildCall2(builder, LLVMGlobalGetValueType(function), function, arguments, params_count, "calltmp");
@@ -489,6 +494,7 @@ LLVMValueRef generateFunction(LLVMModuleRef mod, char *moduleName, char *name, L
     return funct;
 }
 
+// Internal function to verify if a bitmask is zero
 int isBitmaskZero(unsigned int* bitmask, int size) {
     for (int i = 0; i < size; i++) {
         if (bitmask[i] != 0) {
@@ -700,7 +706,7 @@ void generateStatement(LLVMModuleRef mod, char* moduleName, node ast, LLVMBuilde
     } else if (ast.data.type == RETURN) {
         LLVMBuildRet(builder, generateExpression(mod, ast.children[0].children[0], builder));
     } else if (ast.data.type == IMPORT) {
-        LLVMModuleRef importedMod = getModuleRef(extractModuleHash(currentGlobalStack, ast.children->children[0]));
+        LLVMModuleRef importedMod = getModuleRef(getImportedSymbolHash(currentGlobalStack, ast.children->children[0]));
         size_t moduleIdSize;
         char *moduleId = LLVMGetSourceFileName(importedMod, &moduleIdSize);
         if (importedMod == NULL) {
