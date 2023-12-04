@@ -77,16 +77,21 @@ void pushObject(SymbolStack *stack, char *name, char *moduleHash, Symbol *fields
 
 // Library symbols
 typedef struct {
-    char *moduleHash;
+    unsigned char directImport;
+    union {
+        char *moduleHash;
+        Symbol *importedSymbol; // Only used for directly imported symbols
+    };
 } ImportData;
 
-void _pushImport(SymbolStack *stack, char *name, char *currentModuleHash, char *importedModuleHash);
+void _pushImport(SymbolStack *stack, char *name, char *currentModuleHash, Symbol *importedSymbol, char *importedModuleHash);
 void pushImport(SymbolStack *stack, node *importedModuleNode);
 
 char *getImportSymbol(SymbolStack *stack, char *symbol, char *moduleHash);
 char *extractModuleHash(SymbolStack *stack, node ast);
-char *getFunctionName(node *function);
+char *getSymbolName(node *function);
 
+char *getImportedSymbolHash(SymbolStack *stack, node ast);
 short getSymbolType(SymbolStack *stack, node *symbol);
 short resolveExpressionType(SymbolStack *stack, node *expression);
 int verifyType(SymbolStack *stack, node *expression1, node *expression2);

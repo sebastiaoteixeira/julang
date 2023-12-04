@@ -134,7 +134,7 @@ void parseCall(node* parent) {
     tokenListManagerRef->index++;
     // Reorder arguments
     node *reordenedArgs = (node *) malloc(sizeof(node) * (fcall->length - 1));
-    verifyFunction(symbolStackRef, getFunctionName(fcall->children), extractModuleHash(symbolStackRef, fcall->children[0]), fcall->children + 1, reordenedArgs, fcall->length - 1);
+    verifyFunction(symbolStackRef, getSymbolName(fcall->children), extractModuleHash(symbolStackRef, fcall->children[0]), fcall->children + 1, reordenedArgs, fcall->length - 1);
     for (int i = 1; i < fcall->length; i++) {
         fcall->children[i] = reordenedArgs[fcall->length - i - 1];
     }
