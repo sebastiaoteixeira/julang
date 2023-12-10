@@ -87,8 +87,7 @@ struct LST* getSymbol(char *name) {
     struct LST* currentSymbol = getLastSymbol()->prev;
     while (strcmp(currentSymbol->name, name) != 0) {
         if (currentSymbol->prev == NULL) {
-            printf("Error: Symbol %s not found\n", name);
-            exit(1);
+            return NULL;
         }
         currentSymbol = currentSymbol->prev;
     }
@@ -97,11 +96,20 @@ struct LST* getSymbol(char *name) {
 
 LLVMValueRef getValueFromSymbolTable(char *name) {
     struct LST* symbol = getSymbol(name);
+    if (symbol == NULL) {
+        fprintf(stderr, "error: symbol %s not found\n", name);
+        exit(1);
+    }
     return symbol->value;
 }
 
 void updateSymbol(char *name, LLVMValueRef newValue) {
-    getSymbol(name)->value = newValue;
+    struct LST *symbol = getSymbol(name);
+    if (symbol == NULL) {
+        fprintf(stderr, "error: symbol %s not found\n", name);
+        exit(1);
+    }
+    symbol->value = newValue;
 }
 
 void newLevel() {
@@ -245,10 +253,12 @@ short getTokenType(LLVMTypeRef LLVMType) {
 void importSymbols(LLVMModuleRef oMod, LLVMModuleRef iMod) {
     LLVMValueRef value = LLVMGetFirstGlobal(iMod);
     while(value != NULL) {
-        LLVMTypeRef type = LLVMTypeOf(value);
-        LLVMAddGlobal(oMod, type, LLVMGetValueName(value));
+        LLVMTypeRef type = LLVMGlobalGetValueType(value);
+        LLVMValueRef declaredValue = LLVMAddGlobal(oMod, type, LLVMGetValueName(value));
+        newSymbol(LLVMGetValueName(value), declaredValue, type);
         value = LLVMGetNextGlobal(value);
     }
+
     LLVMValueRef function = LLVMGetFirstFunction(iMod);
     while(function != NULL) {
         if (strlen(LLVMGetValueName(function)) > 20) {
@@ -278,6 +288,7 @@ void importSymbols(LLVMModuleRef oMod, LLVMModuleRef iMod) {
         }
         function = LLVMGetNextFunction(function);
     }
+
 }
 
 void generateDeclaration(LLVMModuleRef mod, node ast, int global, LLVMBuilderRef builder) {
@@ -286,8 +297,13 @@ void generateDeclaration(LLVMModuleRef mod, node ast, int global, LLVMBuilderRef
     
     LLVMValueRef value;
     if (global) {
-        value = LLVMAddGlobal(mod, type, ast.children[1].data.text);
+        char *name = ast.children[1].data.text;
+        char *moduleHash = getCurrentModuleHash();
+        char *fullName = (char *) malloc(sizeof(char) * (strlen(moduleHash) + strlen(name) + 1));
+        sprintf(fullName, "%s%s", moduleHash, name);
+        value = LLVMAddGlobal(mod, type, fullName);
         LLVMSetInitializer(value, LLVMConstNull(type));
+        free(fullName);
     } else {
         value = LLVMBuildAlloca(builder, type, ast.children[1].data.text);
     }
@@ -370,10 +386,21 @@ LLVMValueRef generateExpression(LLVMModuleRef mod, node ast, LLVMBuilderRef buil
             values[j] = generateExpression(mod, ast.children[j], builder);
         }
         return LLVMConstArray(elementType, values, ast.length);
-    } else if (ast.data.type == VAR) {
+    } else if (ast.data.type == VAR || ast.data.type == DOT) {
         // For variable
         struct LST* symbol = getSymbol(ast.data.text);
+    
+        if (symbol == NULL) {
+            // Get the llvm value by name
+            char* moduleHash = getImportedSymbolHash(currentGlobalStack, ast, extractModuleHash(currentGlobalStack, ast));
+            char* valueName = getSymbolName(&ast);
+            char* fullName = (char *) malloc(sizeof(char) * (strlen(moduleHash) + strlen(valueName) + 1));
+            sprintf(fullName, "%s%s", moduleHash, valueName);
+            LLVMValueRef valuePointer = LLVMGetNamedGlobal(mod, fullName);
+            return LLVMBuildLoad2(builder, LLVMGlobalGetValueType(valuePointer), valuePointer, "loadtmp");
+        }
         return LLVMBuildLoad2(builder, symbol->type, symbol->value, "loadtmp");
+    
     } else if (ast.data.type == CALL) {
         // For a function call
         short* arguments_types = (short*) malloc(sizeof(short) * (ast.length - 1));
@@ -460,9 +487,7 @@ LLVMValueRef generateExpression(LLVMModuleRef mod, node ast, LLVMBuilderRef buil
             return LLVMBuildOr(builder, LHS, RHS, "ortmp");
         } else if (ast.data.type == XOR) {
             return LLVMBuildXor(builder, LHS, RHS, "xortmp");
-        }
-    } else if (ast.data.type == DOT) {
-        
+        }        
     } else {
         fprintf(stderr, "error: invalid token\n");
         exit(1);
@@ -706,7 +731,8 @@ void generateStatement(LLVMModuleRef mod, char* moduleName, node ast, LLVMBuilde
     } else if (ast.data.type == RETURN) {
         LLVMBuildRet(builder, generateExpression(mod, ast.children[0].children[0], builder));
     } else if (ast.data.type == IMPORT) {
-        LLVMModuleRef importedMod = getModuleRef(getImportedSymbolHash(currentGlobalStack, ast.children->children[0], getCurrentModuleHash()));
+        char* importedModHash = getImportedSymbolHash(currentGlobalStack, ast.children->children[0], getCurrentModuleHash());
+        LLVMModuleRef importedMod = getModuleRef(importedModHash);
         size_t moduleIdSize;
         char *moduleId = LLVMGetSourceFileName(importedMod, &moduleIdSize);
         if (importedMod == NULL) {
@@ -714,6 +740,16 @@ void generateStatement(LLVMModuleRef mod, char* moduleName, node ast, LLVMBuilde
             exit(1);
         }
         importSymbols(mod, importedMod);
+        // Call importedMod main function
+        char *mainFunctionName = malloc(sizeof(char) * (strlen(importedModHash) + 5));
+        sprintf(mainFunctionName, "%smain", importedModHash);
+        LLVMValueRef mainFunction = LLVMGetNamedFunction(mod, mainFunctionName);
+        free(mainFunctionName);
+        if (mainFunction == NULL) {
+            fprintf(stderr, "error: main function not found\n");
+            exit(1);
+        }
+        LLVMBuildCall2(builder, LLVMGlobalGetValueType(mainFunction), mainFunction, NULL, 0, "calltmp");
     } else if (ast.data.type == BREAK) {
         // TODO
     } else if (ast.data.type == CONTINUE) {
