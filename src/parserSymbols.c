@@ -90,10 +90,12 @@ void decreaseLevel(SymbolStack *stack) {
 void pushPrimitive(SymbolStack *stack, char *name, char *moduleHash, short type) {
     Symbol symbol = {
         .name = name,
+        .moduleHash = malloc(strlen(moduleHash) + 1),
         .data = NULL,
         .level = stack->level,
         .type = type
     };
+    strcpy(symbol.moduleHash, moduleHash);
     pushSymbol(stack, symbol);
 }
 

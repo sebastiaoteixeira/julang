@@ -74,6 +74,8 @@ void parseDeclaration(node* parent) {
         }
     }
 
+    pushPrimitive(symbolStack, declaration->children[1].data.text, getCurrentModuleHash(), declaration->children->data.type);
+
     return;
 }
 
@@ -97,6 +99,7 @@ void parseFunction(node* parent) {
             symbol->children = (node*) malloc(sizeof(node));
             tokenListManager.index++;
             if (tokenListManager.tokens[tokenListManager.index].type == LBRACK) {
+                increaseLevel(symbolStack);
                 while (tokenListManager.tokens[tokenListManager.index].type != RBRACK) {
                     tokenListManager.index++;
                     parseDeclaration(function);
@@ -112,9 +115,10 @@ void parseFunction(node* parent) {
                         exit(1);
                     }
                 }
-                pushFunction(symbolStack, function);
                 tokenListManager.index++;
                 parseStatement(function);
+                decreaseLevel(symbolStack);
+                pushFunction(symbolStack, function);
             } else {
                 printf("Error: expected '(' at line %d\n", tokenListManager.tokens[tokenListManager.index].line);
                 exit(1);
@@ -420,7 +424,9 @@ void parseBlock(node* parent)
     }
     tokenListManager.index++;
 
+    increaseLevel(symbolStack);
     parseStatementList(block);
+    decreaseLevel(symbolStack);
 
     if (tokenListManager.tokens[tokenListManager.index].type != RBRACE) {
         printf("Error: Expected '}' at line %d\n",
