@@ -9,9 +9,12 @@ LIBS=-lLLVM-15 -lcrypto
 _OBJ = main.o token.o lexer.o parser.o expressionParser.o logger.o codegen.o moduleHash.o parserSymbols.o module.o
 OBJ = $(patsubst %,$(ODIR)/%,$(_OBJ))
 
-all : $(OUTDIR)/julang
+all : setup $(OUTDIR)/julang
 	bash incBuildCount.sh
 
+setup:
+	mkdir -p $(ODIR)
+	mkdir -p $(OUTDIR)
 
 $(ODIR)/%.o: src/%.c
 		$(CC) -c -o $@ $< $(CFLAGS)

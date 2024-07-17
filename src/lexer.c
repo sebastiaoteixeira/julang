@@ -344,6 +344,7 @@ void destroyTokenList(Token **tokenListRef)
     Token *tokenList = *tokenListRef;
     int i = 0;
     while(tokenList[i-1].type != EOF) {
+        fflush(stdout);
         free(tokenList[i].text);
         i++;
     };
