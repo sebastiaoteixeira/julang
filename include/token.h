@@ -32,6 +32,7 @@
 #define TRUE 0x33
 #define FALSE 0x34
 #define NLL 0x35
+
 // Keywords
 //   Flow Statements
 #define IF 0x40
@@ -73,6 +74,8 @@
 #define BSL 0x84
 #define BSR 0x85
 #define DOT 0x86
+// Declaration Modifiers
+#define CONST 0x90
 
 // Abstract Tokens
 #define EXPRESSION 0xB1
