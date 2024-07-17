@@ -39,6 +39,13 @@ char *charToString(char chr)
     return chrstr;
 }
 
+char *stringToChar(char *str)
+{
+    char* chrstr = malloc(sizeof(char));
+    *chrstr = *str;
+    return chrstr;
+}
+
 char *stringReader(FILE *iCode)
 {
     fseek(iCode, -1, SEEK_CUR);
@@ -97,25 +104,25 @@ Token numberReader(FILE* iCode)
 int reservedWordVerifier(char* string)
 {
     if (strcmp(string, "if") == 0) return IF;
-    if (strcmp(string, "else") == 0) return ELSE;
-    if (strcmp(string, "while") == 0) return WHILE;
-    if (strcmp(string, "for") == 0) return FOR;
-    if (strcmp(string, "do") == 0) return DO;
-    if (strcmp(string, "break") == 0) return BREAK;
-    if (strcmp(string, "continue") == 0) return CONTINUE;
-    if (strcmp(string, "call") == 0) return CALL;
-    if (strcmp(string, "asm") == 0) return ASM;
-    if (strcmp(string, "true") == 0) return TRUE;
-    if (strcmp(string, "false") == 0) return FALSE;
-    if (strcmp(string, "char") == 0) return CHAR;
-    if (strcmp(string, "int") == 0) return INT;
-    if (strcmp(string, "long") == 0) return LONG;
-    if (strcmp(string, "float") == 0) return FLOAT;
-    if (strcmp(string, "double") == 0) return DOUBLE;
-    if (strcmp(string, "bool") == 0) return BOOL;
-    if (strcmp(string, "null") == 0) return NLL;
-    if (strcmp(string, "import") == 0) return IMPORT;
-    if (strcmp(string, "return") == 0) return RETURN;
+    else if (strcmp(string, "else") == 0) return ELSE;
+    else if (strcmp(string, "while") == 0) return WHILE;
+    else if (strcmp(string, "for") == 0) return FOR;
+    else if (strcmp(string, "do") == 0) return DO;
+    else if (strcmp(string, "break") == 0) return BREAK;
+    else if (strcmp(string, "continue") == 0) return CONTINUE;
+    else if (strcmp(string, "call") == 0) return CALL;
+    else if (strcmp(string, "asm") == 0) return ASM;
+    else if (strcmp(string, "true") == 0) return TRUE;
+    else if (strcmp(string, "false") == 0) return FALSE;
+    else if (strcmp(string, "char") == 0) return CHAR;
+    else if (strcmp(string, "int") == 0) return INT;
+    else if (strcmp(string, "long") == 0) return LONG;
+    else if (strcmp(string, "float") == 0) return FLOAT;
+    else if (strcmp(string, "double") == 0) return DOUBLE;
+    else if (strcmp(string, "bool") == 0) return BOOL;
+    else if (strcmp(string, "null") == 0) return NLL;
+    else if (strcmp(string, "import") == 0) return IMPORT;
+    else if (strcmp(string, "return") == 0) return RETURN;
     return 0;
 }
 
@@ -199,7 +206,7 @@ Token nextToken(FILE *iCode)
         case '!':
             if (fgetc(iCode) == '=') {
                 t.type = NEQ;
-                t.text = "!=";
+                t.text = stringToChar("!=");
             } else {
                 fseek(iCode, -1, SEEK_CUR);
                 t.type = NOT;
@@ -209,7 +216,7 @@ Token nextToken(FILE *iCode)
         case '=':
             if (fgetc(iCode) == '=') {
                 t.type = EQ;
-                t.text = "==";
+                t.text = stringToChar("==");
             } else {
                 fseek(iCode, -1, SEEK_CUR);
                 t.type = ASSIGN;
@@ -219,7 +226,7 @@ Token nextToken(FILE *iCode)
         case '<':
             if (fgetc(iCode) == '=') {
                 t.type = LTE;
-                t.text = "<=";
+                t.text = stringToChar("<=");
             } else {
                 fseek(iCode, -1, SEEK_CUR);
                 t.type = LT;
@@ -229,7 +236,7 @@ Token nextToken(FILE *iCode)
         case '>':
             if (fgetc(iCode) == '=') {
                 t.type = GTE;
-                t.text = ">=";
+                t.text = stringToChar(">=");
             } else {
                 fseek(iCode, -1, SEEK_CUR);
                 t.type = GT;
@@ -259,7 +266,7 @@ Token nextToken(FILE *iCode)
         case '&':
             if (fgetc(iCode) == '&') {
                 t.type = AND;
-                t.text = "&&";
+                t.text = stringToChar("&&");
             } else {
                 fseek(iCode, -1, SEEK_CUR);
                 t.type = BAND;
@@ -269,7 +276,7 @@ Token nextToken(FILE *iCode)
         case '|':
             if (fgetc(iCode) == '|') {
                 t.type = OR;
-                t.text = "||";
+                t.text = stringToChar("||");
             } else {
                 fseek(iCode, -1, SEEK_CUR);
                 t.type = BOR;
@@ -279,7 +286,7 @@ Token nextToken(FILE *iCode)
         case '^':
             if (fgetc(iCode) == '^') {
                 t.type = XOR;
-                t.text = "^^";
+                t.text = stringToChar("^^");
             } else {
                 fseek(iCode, -1, SEEK_CUR);
                 t.type = BXOR;
@@ -336,6 +343,7 @@ void destroyTokenList(Token **tokenListRef)
     Token *tokenList = *tokenListRef;
     int i = 0;
     while(tokenList[i-1].type != EOF) {
+        fflush(stdout);
         free(tokenList[i].text);
         i++;
     };
